@@ -1,4 +1,4 @@
-pip install streamlit pandas matplotlib plotly scikit-learn openai
+!pip install streamlit pandas matplotlib plotly scikit-learn openai
 
 import streamlit as st
 import pandas as pd
