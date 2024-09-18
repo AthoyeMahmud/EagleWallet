@@ -3,4 +3,5 @@ pandas
 matplotlib
 plotly
 scikit-learn
+seaborn
 openai
