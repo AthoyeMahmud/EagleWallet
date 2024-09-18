@@ -1,0 +1,6 @@
+streamlit
+pandas
+matplotlib
+plotly
+scikit-learn
+openai
