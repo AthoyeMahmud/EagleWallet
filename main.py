@@ -1,3 +1,5 @@
+pip install streamlit pandas matplotlib plotly scikit-learn openai
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
