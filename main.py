@@ -98,7 +98,7 @@ def main():
                 if user_id:
                     st.session_state.user_id = user_id
                     st.success("Logged in successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Invalid username or password")
 
@@ -139,7 +139,7 @@ def main():
 
         if st.button("Logout"):
             st.session_state.user_id = None
-            st.experimental_rerun()
+            st.rerun()
 
 if __name__ == "__main__":
     main()
