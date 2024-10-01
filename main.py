@@ -7,7 +7,7 @@ import plotly.express as px
 from abc import ABC, abstractmethod
 
 # Database setup
-conn = sqlite3.connect('expense_tracker.db')
+conn = sqlite3.connect('expense_tracker.db', check_same_thread=False)
 c = conn.cursor()
 
 # Create tables
@@ -31,11 +31,13 @@ class User:
 
     @staticmethod
     def authenticate(username, password):
-        c.execute("SELECT password FROM users WHERE username = ?", (username,))
+        c.execute("SELECT id, password FROM users WHERE username = ?", (username,))
         result = c.fetchone()
         if result:
-            return pbkdf2_sha256.verify(password, result[0])
-        return False
+            user_id, stored_password = result
+            if pbkdf2_sha256.verify(password, stored_password):
+                return user_id
+        return None
 
 class Expense(ABC):
     def __init__(self, user_id, amount, category, date, currency):
@@ -74,8 +76,10 @@ class ExpenseTracker:
 
     def visualize_expenses(self):
         df = self.generate_report()
-        fig = px.pie(df, values='amount', names='category', title='Expense Distribution')
-        return fig
+        if not df.empty:
+            fig = px.pie(df, values='amount', names='category', title='Expense Distribution')
+            return fig
+        return None
 
 def main():
     st.title("Expense Tracker App")
@@ -90,10 +94,11 @@ def main():
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             if st.button("Login"):
-                if User.authenticate(username, password):
-                    c.execute("SELECT id FROM users WHERE username = ?", (username,))
-                    st.session_state.user_id = c.fetchone()[0]
+                user_id = User.authenticate(username, password)
+                if user_id:
+                    st.session_state.user_id = user_id
                     st.success("Logged in successfully!")
+                    st.experimental_rerun()
                 else:
                     st.error("Invalid username or password")
 
@@ -127,7 +132,10 @@ def main():
 
         st.header("Expense Visualization")
         fig = tracker.visualize_expenses()
-        st.plotly_chart(fig)
+        if fig:
+            st.plotly_chart(fig)
+        else:
+            st.info("No expenses to visualize yet.")
 
         if st.button("Logout"):
             st.session_state.user_id = None
