@@ -161,4 +161,3 @@ elif option == 'Stock Recommendations':
 
 # ======================== Footer ========================
 st.sidebar.write("© 2024 - Expense Tracker App")
-
