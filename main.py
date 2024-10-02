@@ -40,22 +40,20 @@ def convert_currency(amount, from_currency, to_currency):
         return None
 
 # Sidebar navigation
-option = st.sidebar.selectbox('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization',
-                                       'Goal Tracking', 'Expense Prediction', 'Travel Budgeting', 'Debt Tracking',
-                                       'Generate Sample Data', 'Import/Export'])
+st.sidebar.title("Enhanced Expense Tracker")
+option = st.sidebar.radio('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization',
+                                   'Goal Tracking', 'Expense Prediction', 'Travel Budgeting', 'Debt Tracking',
+                                   'Generate Sample Data', 'Import/Export'])
 
-# 1. Home
+# Main content area
 if option == 'Home':
     st.header("Welcome to the Enhanced Expense Tracker App!")
     st.write("""
     This app helps you manage and track your expenses, scan receipts, set goals, predict spending trends, and much more!
     """)
 
-# 2. Add Expense Manually
-if option == 'Add Expense':
+elif option == 'Add Expense':
     st.header("Add a New Expense")
-
-    # Input form for expenses
     date = st.date_input("Expense Date")
     description = st.text_input("Description")
     category = st.selectbox("Expense Category", ["Auto", "Bills", "Entertainment", "Food", "Shopping", "Travel", "Other"])
@@ -67,21 +65,15 @@ if option == 'Add Expense':
         st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
         st.success(f"Added {category} expense of {amount} {currency}!")
 
-# 3. Receipt Scanning (OCR using Tesseract)
-if option == 'Receipt Scanning':
+elif option == 'Receipt Scanning':
     st.header("Receipt Scanning")
-
     uploaded_file = st.file_uploader("Upload a receipt image", type=["png", "jpg", "jpeg"])
 
     if uploaded_file is not None:
         img = Image.open(uploaded_file)
         st.image(img, caption="Uploaded Receipt", use_column_width=True)
-
-        # Perform OCR on the image
         receipt_text = pytesseract.image_to_string(img)
         st.text_area("Extracted Text", receipt_text)
-
-        # Automatically categorize the expense based on the OCR text
         category = categorize_expense(receipt_text)
         amount = st.number_input("Enter the amount (as scanned may be inaccurate)", min_value=0.0)
         currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
@@ -91,41 +83,30 @@ if option == 'Receipt Scanning':
             st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
             st.success(f"Scanned {category} expense of {amount} {currency}!")
 
-# 4. Expense Visualization (Plotly)
-if option == 'Expense Visualization':
+elif option == 'Expense Visualization':
     st.header("Expense Visualization")
-
     if st.session_state.expenses.empty:
         st.warning("No expenses recorded yet. Please add expenses first.")
     else:
-        # Filter by currency
         selected_currency = st.selectbox("View expenses in currency", ["USD", "EUR", "GBP", "INR", "JPY"])
         filtered_expenses = st.session_state.expenses.copy()
-
-        # Convert all expenses to selected currency
         for i, row in filtered_expenses.iterrows():
             if row['Currency'] != selected_currency:
                 converted = convert_currency(row['Amount'], row['Currency'], selected_currency)
                 if converted is not None:
                     filtered_expenses.at[i, 'Amount'] = converted
                     filtered_expenses.at[i, 'Currency'] = selected_currency
-
-        # Visualize the expenses using Plotly
         fig = px.bar(filtered_expenses, x="Date", y="Amount", color="Category", barmode="group", title=f"Expenses in {selected_currency}")
         st.plotly_chart(fig)
 
-# 5. Goal Tracking
-if option == 'Goal Tracking':
+elif option == 'Goal Tracking':
     st.header("Track Your Goals")
-
-    # Display current goals
     st.subheader("Your Goals")
     if st.session_state.goals.empty:
         st.write("No goals set yet.")
     else:
         st.write(st.session_state.goals)
 
-    # Add new goals
     st.subheader("Set a New Goal")
     goal_name = st.text_input("Goal Name")
     target_amount = st.number_input("Target Amount")
@@ -136,66 +117,42 @@ if option == 'Goal Tracking':
         st.session_state.goals = st.session_state.goals.append(new_goal, ignore_index=True)
         st.success(f"Added goal '{goal_name}' with a target of {target_amount}!")
 
-# 6. Expense Prediction (Linear Regression)
-if option == 'Expense Prediction':
+elif option == 'Expense Prediction':
     st.header("Expense Prediction")
-
     if len(st.session_state.expenses) < 2:
         st.warning("You need at least two expenses to make predictions.")
     else:
-        # Convert Date to proper format and sort expenses
         st.session_state.expenses['Date'] = pd.to_datetime(st.session_state.expenses['Date'])
         st.session_state.expenses.sort_values(by='Date', inplace=True)
-
-        # Prepare data for linear regression
         X = np.arange(len(st.session_state.expenses)).reshape(-1, 1)
         y = st.session_state.expenses['Amount'].values
-
-        # Train a simple linear regression model
         model = LinearRegression()
         model.fit(X, y)
-
-        # Predict the next expense
         next_month = len(X) + 1
         predicted_expense = model.predict([[next_month]])
-
         st.write(f"Predicted expense for next entry: {predicted_expense[0]:.2f} USD")
-
-        # Budget Alert
         budget_limit = st.number_input("Enter your budget limit", value=200.0)
         if predicted_expense[0] > budget_limit:
             st.warning(f"You are likely to exceed your budget of {budget_limit} in the next period!")
 
-# 7. Travel/Vacation Budgeting
-if option == 'Travel Budgeting':
+elif option == 'Travel Budgeting':
     st.header("Travel/Vacation Budgeting")
-
-    # Input for budgeting
     trip_name = st.text_input("Trip Name")
     travel_goal = st.number_input("Total Trip Budget")
     trip_expenses = st.number_input("Current Trip Expenses", min_value=0.0)
-
     remaining_budget = travel_goal - trip_expenses
-
     st.write(f"Remaining travel budget for {trip_name}: {remaining_budget:.2f}")
 
-# 8. Debt Tracking
-if option == 'Debt Tracking':
+elif option == 'Debt Tracking':
     st.header("Debt Tracking and Payoff Strategies")
-
-    # Input form for debts
     debt_name = st.text_input("Debt Name (e.g., Car loan, Mortgage)")
     total_debt = st.number_input("Total Debt Amount")
     monthly_payment = st.number_input("Monthly Payment")
-
-    # Simple debt payoff calculation
     months_to_payoff = total_debt / monthly_payment if monthly_payment > 0 else 0
     st.write(f"It will take you {months_to_payoff:.2f} months to pay off {debt_name}.")
 
-# 9. Generate Sample Data
-if option == 'Generate Sample Data':
+elif option == 'Generate Sample Data':
     st.header("Generate Sample Data")
-
     def generate_sample_expenses(n=10):
         categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
         data = []
@@ -213,15 +170,11 @@ if option == 'Generate Sample Data':
         st.session_state.expenses = generate_sample_expenses()
         st.write(st.session_state.expenses)
 
-# 10. Import/Export Data
-if option == 'Import/Export':
+elif option == 'Import/Export':
     st.header("Import/Export Expense Data")
-
-    # Export expenses as CSV
     if st.session_state.expenses.empty:
         st.warning("No expenses to export. Please add expenses first.")
     else:
-        # Export expenses
         csv = st.session_state.expenses.to_csv(index=False)
         st.download_button(
             label="Export Expenses to CSV",
@@ -230,10 +183,8 @@ if option == 'Import/Export':
             mime='text/csv',
         )
 
-    # Import expenses from CSV
     st.subheader("Import Expenses from CSV")
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-
     if uploaded_file is not None:
         imported_expenses = pd.read_csv(uploaded_file)
         st.session_state.expenses = pd.concat([st.session_state.expenses, imported_expenses], ignore_index=True)
