@@ -9,188 +9,183 @@ from sklearn.linear_model import LinearRegression
 import random
 import hashlib
 
-# Initialize session state for users and expense data
-if 'user_authenticated' not in st.session_state:
-    st.session_state.user_authenticated = False
+# Initialize session state for expense data and user settings
 if 'expenses' not in st.session_state:
     st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Amount', 'Currency'])
-if 'users' not in st.session_state:
-    # In-memory storage for user registration. Replace with DB in production.
-    st.session_state.users = {}
 
-# Utility function to hash passwords for basic security (you can improve this)
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+# Utility function for generating random expenses (used in sample data)
+def generate_sample_expenses(n=10):
+    categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
+    data = []
+    for i in range(n):
+        data.append({
+            "Date": pd.Timestamp('2024-01-01') + pd.DateOffset(days=random.randint(0, 365)),
+            "Category": random.choice(categories),
+            "Amount": random.randint(10, 500),
+            "Currency": random.choice(["USD", "EUR", "GBP"])
+        })
+    return pd.DataFrame(data)
 
-# User Registration and Authentication
-def register_user(username, password):
-    if username in st.session_state.users:
-        return False, "Username already exists. Choose a different one."
-    st.session_state.users[username] = hash_password(password)
-    return True, "User registered successfully!"
+# Sidebar navigation
+option = st.sidebar.selectbox('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization', 
+                                       'Currency Conversion', 'Expense Prediction', 'Generate Sample Data',
+                                       'Customizable Reports', 'Investment Tracking', 'Debt Payoff Strategies',
+                                       'Travel/Vacation Budgeting'])
 
-def authenticate_user(username, password):
-    if username in st.session_state.users:
-        return st.session_state.users[username] == hash_password(password)
-    return False
+# 1. Home
+if option == 'Home':
+    st.header("Welcome to the Expense Tracker App!")
+    st.write("""
+    This app helps you track your expenses, scan receipts, convert currencies, predict your future expenses,
+    and visualize your spending habits. Additional features include debt tracking, investment tracking, and more.
+    """)
 
-# Login and Registration logic
-st.title('Expense Tracker App')
+# 2. Add Expense Manually
+if option == 'Add Expense':
+    st.header("Add a New Expense")
 
-if not st.session_state.user_authenticated:
-    auth_choice = st.sidebar.selectbox('Login or Signup', ['Login', 'Signup'])
+    # Input form for expenses
+    date = st.date_input("Expense Date")
+    category = st.selectbox("Expense Category", ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"])
+    amount = st.number_input("Amount")
+    currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
 
-    if auth_choice == 'Signup':
-        st.header('Create an Account')
-        new_username = st.text_input('Enter a new username')
-        new_password = st.text_input('Enter a new password', type='password')
-        confirm_password = st.text_input('Confirm your password', type='password')
+    if st.button("Add Expense"):
+        new_expense = {"Date": date, "Category": category, "Amount": amount, "Currency": currency}
+        st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
+        st.success(f"Added {category} expense of {amount} {currency}!")
 
-        if st.button('Register'):
-            if new_password != confirm_password:
-                st.error('Passwords do not match!')
-            else:
-                success, message = register_user(new_username, new_password)
-                if success:
-                    st.success(message)
-                    st.info('You can now log in with your credentials.')
-                else:
-                    st.error(message)
+# 3. Receipt Scanning (OCR using Tesseract)
+if option == 'Receipt Scanning':
+    st.header("Receipt Scanning")
 
-    elif auth_choice == 'Login':
-        st.header('Log In')
-        username = st.text_input('Username')
-        password = st.text_input('Password', type='password')
+    uploaded_file = st.file_uploader("Upload a receipt image", type=["png", "jpg", "jpeg"])
 
-        if st.button('Login'):
-            if authenticate_user(username, password):
-                st.session_state.user_authenticated = True
-                st.session_state.current_user = username
-                st.success('Logged in successfully!')
-            else:
-                st.error('Invalid username or password.')
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="Uploaded Receipt", use_column_width=True)
 
-# Main App Features
-if st.session_state.user_authenticated:
+        # Perform OCR on the image
+        receipt_text = pytesseract.image_to_string(img)
+        st.text_area("Extracted Text", receipt_text)
 
-    # Sidebar navigation
-    option = st.sidebar.selectbox('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization', 
-                                           'Currency Conversion', 'Expense Prediction', 'Generate Sample Data'])
+# 4. Expense Visualization (Plotly)
+if option == 'Expense Visualization':
+    st.header("Expense Visualization")
 
-    # 1. Home
-    if option == 'Home':
-        st.header(f"Welcome, {st.session_state.current_user}!")
-        st.write("""
-        This app helps you track your expenses, scan receipts, convert currencies, predict your future expenses,
-        and visualize your spending habits.
-        """)
+    # If there are no expenses, prompt the user to add some.
+    if st.session_state.expenses.empty:
+        st.warning("No expenses recorded yet. Please add expenses first.")
+    else:
+        # Visualize the expenses using Plotly
+        fig = px.bar(st.session_state.expenses, x="Date", y="Amount", color="Category", barmode="group")
+        st.plotly_chart(fig)
 
-    # 2. Add Expense Manually
-    if option == 'Add Expense':
-        st.header("Add a New Expense")
+# 5. Currency Conversion (forex-python)
+if option == 'Currency Conversion':
+    st.header("Currency Conversion")
 
-        # Input form for expenses
-        date = st.date_input("Expense Date")
-        category = st.selectbox("Expense Category", ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"])
-        amount = st.number_input("Amount")
-        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+    c = CurrencyRates()
+    amount = st.number_input("Amount in your local currency (USD)")
+    to_currency = st.selectbox("Convert to", ["EUR", "GBP", "INR", "JPY"])
 
-        if st.button("Add Expense"):
-            new_expense = {"Date": date, "Category": category, "Amount": amount, "Currency": currency}
-            st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
-            st.success(f"Added {category} expense of {amount} {currency}!")
+    if st.button("Convert"):
+        try:
+            converted_amount = c.convert('USD', to_currency, amount)
+            st.write(f"Converted Amount: {converted_amount} {to_currency}")
+        except Exception as e:
+            st.error(f"Error during conversion: {e}")
 
-    # 3. Receipt Scanning (OCR using Tesseract)
-    if option == 'Receipt Scanning':
-        st.header("Receipt Scanning")
+# 6. Expense Prediction (Linear Regression)
+if option == 'Expense Prediction':
+    st.header("Expense Prediction")
 
-        uploaded_file = st.file_uploader("Upload a receipt image", type=["png", "jpg", "jpeg"])
+    # Ensure that we have enough data for predictions
+    if len(st.session_state.expenses) < 2:
+        st.warning("You need at least two expenses to make predictions.")
+    else:
+        # Create a dummy dataset based on current expenses for prediction
+        st.session_state.expenses['Date'] = pd.to_datetime(st.session_state.expenses['Date'])
+        st.session_state.expenses.sort_values(by='Date', inplace=True)
+        X = np.arange(len(st.session_state.expenses)).reshape(-1, 1)
+        y = st.session_state.expenses['Amount'].values
 
-        if uploaded_file is not None:
-            img = Image.open(uploaded_file)
-            st.image(img, caption="Uploaded Receipt", use_column_width=True)
+        # Linear Regression for expense prediction
+        model = LinearRegression()
+        model.fit(X, y)
 
-            # Perform OCR on the image
-            receipt_text = pytesseract.image_to_string(img)
-            st.text_area("Extracted Text", receipt_text)
+        # Predict next expense
+        next_month = len(X) + 1
+        predicted_expense = model.predict([[next_month]])
 
-    # 4. Expense Visualization (Plotly)
-    if option == 'Expense Visualization':
-        st.header("Expense Visualization")
+        st.write(f"Predicted expense for next entry: {predicted_expense[0]:.2f} USD")
 
-        # If there are no expenses, prompt the user to add some.
-        if st.session_state.expenses.empty:
-            st.warning("No expenses recorded yet. Please add expenses first.")
-        else:
-            # Visualize the expenses using Plotly
-            fig = px.bar(st.session_state.expenses, x="Date", y="Amount", color="Category", barmode="group")
-            st.plotly_chart(fig)
+        # Alert based on prediction
+        budget_limit = st.number_input("Enter your budget limit", value=200.0)
+        if predicted_expense[0] > budget_limit:
+            st.warning("You are likely to exceed your budget in the next period!")
 
-    # 5. Currency Conversion (forex-python)
-    if option == 'Currency Conversion':
-        st.header("Currency Conversion")
+# 7. Generate Sample Data
+if option == 'Generate Sample Data':
+    st.header("Generate Sample Data")
 
-        c = CurrencyRates()
-        amount = st.number_input("Amount in your local currency (USD)")
-        to_currency = st.selectbox("Convert to", ["EUR", "GBP", "INR", "JPY"])
+    if st.button("Generate Sample Data"):
+        st.session_state.expenses = generate_sample_expenses()
+        st.write(st.session_state.expenses)
 
-        if st.button("Convert"):
-            try:
-                converted_amount = c.convert('USD', to_currency, amount)
-                st.write(f"Converted Amount: {converted_amount} {to_currency}")
-            except Exception as e:
-                st.error(f"Error during conversion: {e}")
+# 8. Customizable Reports (Import/Export CSV)
+if option == 'Customizable Reports':
+    st.header("Import/Export Expense Data")
 
-    # 6. Expense Prediction (Linear Regression)
-    if option == 'Expense Prediction':
-        st.header("Expense Prediction")
+    # Export expenses as CSV
+    if not st.session_state.expenses.empty:
+        st.download_button("Download CSV", st.session_state.expenses.to_csv(index=False), "expenses.csv")
 
-        # Ensure that we have enough data for predictions
-        if len(st.session_state.expenses) < 2:
-            st.warning("You need at least two expenses to make predictions.")
-        else:
-            # Create a dummy dataset based on current expenses for prediction
-            st.session_state.expenses['Date'] = pd.to_datetime(st.session_state.expenses['Date'])
-            st.session_state.expenses.sort_values(by='Date', inplace=True)
-            X = np.arange(len(st.session_state.expenses)).reshape(-1, 1)
-            y = st.session_state.expenses['Amount'].values
+    # Import CSV
+    uploaded_csv = st.file_uploader("Upload an expense CSV", type="csv")
+    if uploaded_csv is not None:
+        new_expenses = pd.read_csv(uploaded_csv)
+        st.session_state.expenses = st.session_state.expenses.append(new_expenses, ignore_index=True)
+        st.success("Data imported successfully!")
+        st.write(st.session_state.expenses)
 
-            # Linear Regression for expense prediction
-            model = LinearRegression()
-            model.fit(X, y)
+# 9. Investment Tracking (Basic)
+if option == 'Investment Tracking':
+    st.header("Investment Tracking")
 
-            # Predict next expense
-            next_month = len(X) + 1
-            predicted_expense = model.predict([[next_month]])
+    # Simulated investment tracking (manual entry for now)
+    investment_amount = st.number_input("Investment Amount")
+    investment_type = st.selectbox("Investment Type", ["Stocks", "Bonds", "Real Estate", "Crypto", "Other"])
+    expected_return = st.number_input("Expected Return (%)")
 
-            st.write(f"Predicted expense for next entry: {predicted_expense[0]:.2f} USD")
+    if st.button("Track Investment"):
+        st.success(f"Tracking {investment_type} investment of {investment_amount} USD with an expected return of {expected_return}%.")
 
-            # Alert based on prediction
-            budget_limit = st.number_input("Enter your budget limit", value=200.0)
-            if predicted_expense[0] > budget_limit:
-                st.warning("You are likely to exceed your budget in the next period!")
+# 10. Debt Payoff Strategies
+if option == 'Debt Payoff Strategies':
+    st.header("Debt Payoff Strategies")
 
-    # 7. Generate Sample Data
-    if option == 'Generate Sample Data':
-        st.header("Generate Sample Data")
+    debt_amount = st.number_input("Total Debt Amount")
+    monthly_payment = st.number_input("Monthly Payment Amount")
+    interest_rate = st.number_input("Interest Rate (%)")
 
-        def generate_sample_expenses(n=10):
-            categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
-            data = []
-            for i in range(n):
-                data.append({
-                    "Date": pd.Timestamp('2024-01-01') + pd.DateOffset(days=random.randint(0, 365)),
-                    "Category": random.choice(categories),
-                    "Amount": random.randint(10, 500),
-                    "Currency": random.choice(["USD", "EUR", "GBP"])
-                })
-            return pd.DataFrame(data)
+    if st.button("Calculate Payoff"):
+        # Simple debt payoff calculator (ignores compounding for simplicity)
+        months_to_payoff = debt_amount / monthly_payment
+        total_paid = months_to_payoff * monthly_payment
 
-        if st.button("Generate Sample Data"):
-            st.session_state.expenses = generate_sample_expenses()
-            st.write(st.session_state.expenses)
+        st.write(f"Months to Payoff: {months_to_payoff:.2f} months")
+        st.write(f"Total Paid (without compounding): {total_paid:.2f} USD")
 
-    # Display logout button
-    if st.sidebar.button('Logout'):
-        st.session_state.user_authenticated = False
-        st.success("Logged out successfully.")
+# 11. Travel/Vacation Budgeting
+if option == 'Travel/Vacation Budgeting':
+    st.header("Travel/Vacation Budgeting")
+
+    destination = st.text_input("Destination")
+    travel_budget = st.number_input("Travel Budget")
+    accommodation_budget = st.number_input("Accommodation Budget")
+    activity_budget = st.number_input("Activity Budget")
+
+    total_budget = travel_budget + accommodation_budget + activity_budget
+    if st.button("Calculate Total Budget"):
+        st.write(f"Total Budget for {destination}: {total_budget} USD")

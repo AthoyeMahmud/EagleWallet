@@ -7,3 +7,5 @@ cryptography
 pillow
 forex-python
 pytesseract
+hashlib
+io
