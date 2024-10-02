@@ -8,3 +8,5 @@ openai
 passlib
 cryptography
 pillow
+forex-python
+pytesseract
