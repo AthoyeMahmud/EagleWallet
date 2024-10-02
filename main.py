@@ -1,125 +1,208 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from forex_python.converter import CurrencyRates
-import pytesseract
-from PIL import Image
 import numpy as np
-from sklearn.linear_model import LinearRegression
+import plotly.express as px
+import datetime
+from forex_python.converter import CurrencyRates
+import base64
 import random
-from datetime import datetime, timedelta
+import os
+from io import BytesIO
+from PIL import Image
 
-# Initialize session state for expenses and goals
-def initialize_session_state():
-    if 'expenses' not in st.session_state:
-        st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Description', 'Amount', 'Currency'])
-    if 'goals' not in st.session_state:
-        st.session_state.goals = pd.DataFrame(columns=['Goal', 'Target Amount', 'Current Amount'])
+# ---- Streamlit App Configuration ----
+st.set_page_config(page_title="Expense Tracker App", layout="wide")
 
-initialize_session_state()
+# ---- Sidebar for Navigation ----
+st.sidebar.title("Expense Tracker")
+st.sidebar.header("Menu")
 
-# Function to automatically categorize expenses based on description
-def categorize_expense(description):
-    keywords = {
-        'food': ['restaurant', 'grocery', 'food'],
-        'travel': ['flight', 'hotel', 'taxi', 'uber'],
-        'shopping': ['clothing', 'electronics', 'mall'],
-        'entertainment': ['movie', 'cinema', 'concert'],
-        'health': ['doctor', 'medicine', 'pharmacy'],
-        'other': ['other']
+# Navigation options
+menu = [
+    "Dashboard", 
+    "Add Expense", 
+    "Scan Receipt", 
+    "Reports", 
+    "Settings", 
+    "Investment Tracking", 
+    "Goal Tracking", 
+    "Budget Alerts", 
+    "Generate Sample Data"
+]
+choice = st.sidebar.selectbox("Navigate", menu)
+
+# ---- Load and Generate Sample Data ----
+@st.cache_data
+def load_sample_data(currency="USD", period="monthly"):
+    np.random.seed(42)
+    dates = pd.date_range(datetime.date.today() - pd.DateOffset(months=12), periods=12, freq='M')
+    categories = ['Food', 'Transport', 'Bills', 'Rent', 'Entertainment', 'Health', 'Travel']
+    data = {
+        'Date': dates,
+        'Category': [random.choice(categories) for _ in range(12)],
+        'Amount': np.random.randint(50, 2000, size=12),
+        'Currency': [currency]*12
     }
-    for category, words in keywords.items():
-        if any(word in description.lower() for word in words):
-            return category
-    return 'other'
+    df = pd.DataFrame(data)
+    return df
 
-# Utility for converting currencies
+def generate_random_data(num_entries=50, currency="USD"):
+    np.random.seed(42)
+    start_date = datetime.date.today() - pd.DateOffset(months=12)
+    end_date = datetime.date.today()
+    dates = pd.date_range(start_date, end_date, periods=num_entries)
+    categories = ['Food', 'Transport', 'Bills', 'Rent', 'Entertainment', 'Health', 'Travel']
+    data = {
+        'Date': np.random.choice(dates, num_entries),
+        'Category': np.random.choice(categories, num_entries),
+        'Amount': np.random.randint(10, 3000, num_entries),
+        'Currency': [currency] * num_entries
+    }
+    return pd.DataFrame(data)
+
+# ---- Currency Conversion Utility ----
 def convert_currency(amount, from_currency, to_currency):
     c = CurrencyRates()
     try:
         return c.convert(from_currency, to_currency, amount)
     except Exception as e:
-        st.error(f"Currency conversion failed: {e}")
-        return None
+        st.error(f"Currency conversion error: {e}")
+        return amount
 
-# Sidebar navigation
-st.sidebar.title("Enhanced Expense Tracker")
-option = st.sidebar.radio('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization',
-                                   'Goal Tracking', 'Expense Prediction', 'Travel Budgeting', 'Debt Tracking',
-                                   'Generate Sample Data', 'Import/Export'])
+# ---- File Downloader (for CSV export) ----
+def download_file(df, filename="expense_report.csv"):
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">Download CSV file</a>'
+    return href
 
-# Main content area
-if option == 'Home':
-    st.header("Welcome to the Enhanced Expense Tracker App!")
-    st.write("""
-    This app helps you manage and track your expenses, scan receipts, set goals, predict spending trends, and much more!
-    Use the sidebar to navigate through different features.
-    """)
+# ---- Visualization Function ----
+def visualize_expenses(df):
+    fig = px.pie(df, names='Category', values='Amount', title="Expenses by Category")
+    st.plotly_chart(fig)
 
-elif option == 'Add Expense':
+# ---- Dashboard ----
+if choice == "Dashboard":
+    st.title("Expense Dashboard")
+    
+    # Load or generate sample data
+    df = load_sample_data()
+    
+    # Display data
+    st.write("**Expense Summary**")
+    st.dataframe(df)
+    
+    # Visualization
+    visualize_expenses(df)
+    
+    # Total Expense
+    st.write(f"**Total Expense**: ${df['Amount'].sum():,.2f}")
+
+# ---- Add Expense ----
+elif choice == "Add Expense":
     st.header("Add a New Expense")
-    date = st.date_input("Expense Date")
-    description = st.text_input("Description")
-    category = st.selectbox("Expense Category", ["Auto", "Bills", "Entertainment", "Food", "Shopping", "Travel", "Other"])
-    amount = st.number_input("Amount")
-    currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+    
+    with st.form("expense_form"):
+        date = st.date_input("Date", value=datetime.date.today())
+        category = st.selectbox("Category", ["Food", "Transport", "Bills", "Rent", "Entertainment", "Health", "Travel"])
+        amount = st.number_input("Amount", min_value=0.0)
+        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "JPY", "INR"])
+        submit = st.form_submit_button("Add Expense")
+    
+    if submit:
+        # Log and show added expense
+        st.write(f"Added Expense: {date}, {category}, {amount:.2f} {currency}")
 
-    if st.button("Add Expense"):
-        new_expense = {"Date": date, "Category": category, "Description": description, "Amount": amount, "Currency": currency}
-        st.session_state.expenses = pd.concat([st.session_state.expenses, pd.DataFrame([new_expense])], ignore_index=True)
-        st.success(f"Added {category} expense of {amount} {currency}!")
-
-elif option == 'Receipt Scanning':
-    st.header("Receipt Scanning")
-    uploaded_file = st.file_uploader("Upload a receipt image", type=["png", "jpg", "jpeg"])
-
+# ---- Scan Receipt (Stub) ----
+elif choice == "Scan Receipt":
+    st.header("Scan Receipt for Automatic Expense Entry")
+    
+    uploaded_file = st.file_uploader("Upload a receipt image (JPG/PNG)", type=["jpg", "png"])
+    
     if uploaded_file is not None:
+        # Show image and placeholder for OCR processing
         img = Image.open(uploaded_file)
-        st.image(img, caption="Uploaded Receipt", use_column_width=True)
-        receipt_text = pytesseract.image_to_string(img)
-        st.text_area("Extracted Text", receipt_text)
-        category = categorize_expense(receipt_text)
-        amount = st.number_input("Enter the amount (as scanned may be inaccurate)", min_value=0.0)
-        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+        st.image(img, caption='Uploaded Receipt', use_column_width=True)
+        st.write("Processing receipt... (OCR integration goes here)")
+        # OCR integration: Implement Tesseract or Google Vision here
 
-        if st.button("Save Scanned Expense"):
-            new_expense = {"Date": pd.Timestamp.today(), "Category": category, "Description": receipt_text, "Amount": amount, "Currency": currency}
-            st.session_state.expenses = pd.concat([st.session_state.expenses, pd.DataFrame([new_expense])], ignore_index=True)
-            st.success(f"Scanned {category} expense of {amount} {currency}!")
+# ---- Reports ----
+elif choice == "Reports":
+    st.header("Expense Reports")
+    
+    # Filters for generating reports
+    report_type = st.selectbox("Report Type", ["Monthly", "Yearly", "Category-Wise"])
+    start_date = st.date_input("Start Date", datetime.date.today() - pd.DateOffset(months=1))
+    end_date = st.date_input("End Date", datetime.date.today())
+    
+    # Load and filter data
+    df = load_sample_data()
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+    
+    st.write(f"Report from {start_date} to {end_date}")
+    st.dataframe(filtered_df)
+    
+    # CSV Download Option
+    st.markdown(download_file(filtered_df), unsafe_allow_html=True)
 
-elif option == 'Expense Visualization':
-    st.header("Expense Visualization")
-    if st.session_state.expenses.empty:
-        st.warning("No expenses recorded yet. Please add expenses first.")
+# ---- Settings and Currency Conversion ----
+elif choice == "Settings":
+    st.header("Settings")
+    
+    # Currency Conversion Test
+    amount = st.number_input("Enter amount to convert")
+    from_currency = st.selectbox("From Currency", ["USD", "EUR", "GBP", "INR"])
+    to_currency = st.selectbox("To Currency", ["USD", "EUR", "GBP", "INR"])
+    
+    if st.button("Convert"):
+        converted = convert_currency(amount, from_currency, to_currency)
+        st.write(f"{amount} {from_currency} = {converted:.2f} {to_currency}")
+
+# ---- Investment Tracking (Stub) ----
+elif choice == "Investment Tracking":
+    st.header("Track Investments")
+    
+    # Placeholder for investment tracking and suggestions
+    st.write("Track your investments and get recommendations based on your disposable income.")
+
+# ---- Goal Tracking ----
+elif choice == "Goal Tracking":
+    st.header("Set and Track Financial Goals")
+    
+    goal = st.text_input("Enter your financial goal (e.g., Save $10,000)")
+    current_savings = st.number_input("Current savings amount", min_value=0.0)
+    
+    if st.button("Track Goal"):
+        st.write(f"Goal: {goal}, Current Savings: {current_savings}")
+
+# ---- Budget Alerts ----
+elif choice == "Budget Alerts":
+    st.header("Budget Alerts")
+    
+    budget_limit = st.number_input("Set your monthly budget limit", min_value=0.0)
+    
+    # Load data and check if budget exceeded
+    df = load_sample_data()
+    total_expense = df['Amount'].sum()
+    
+    if total_expense > budget_limit:
+        st.warning(f"Warning: You've exceeded your budget by ${total_expense - budget_limit:.2f}!")
     else:
-        selected_currency = st.selectbox("View expenses in currency", ["USD", "EUR", "GBP", "INR", "JPY"])
-        filtered_expenses = st.session_state.expenses.copy()
+        st.success(f"You're within your budget. Total expense: ${total_expense:.2f}")
 
-        # Apply conversion efficiently
-        def convert_row(row):
-            if row['Currency'] != selected_currency:
-                return convert_currency(row['Amount'], row['Currency'], selected_currency)
-            return row['Amount']
+# ---- Generate Sample Data ----
+elif choice == "Generate Sample Data":
+    st.header("Generate Random Expense Data")
+    
+    currency = st.selectbox("Select Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+    num_entries = st.number_input("Number of entries", min_value=10, max_value=1000, step=10)
+    
+    # Generate and display data
+    df = generate_random_data(num_entries, currency)
+    st.dataframe(df)
+    
+    # CSV Download Option
+    st.markdown(download_file(df), unsafe_allow_html=True)
 
-        filtered_expenses['Amount'] = filtered_expenses.apply(lambda row: convert_row(row), axis=1)
-        filtered_expenses['Currency'] = selected_currency
-        fig = px.bar(filtered_expenses, x="Date", y="Amount", color="Category", barmode="group", title=f"Expenses in {selected_currency}")
-        st.plotly_chart(fig)
-
-elif option == 'Goal Tracking':
-    st.header("Track Your Goals")
-    st.subheader("Your Goals")
-    if st.session_state.goals.empty:
-        st.write("No goals set yet.")
-    else:
-        st.write(st.session_state.goals)
-
-    st.subheader("Set a New Goal")
-    goal_name = st.text_input("Goal Name")
-    target_amount = st.number_input("Target Amount")
-    current_amount = st.number_input("Current Amount", min_value=0.0)
-
-    if st.button("Add Goal"):
-        new_goal = {"Goal": goal_name, "Target Amount": target_amount, "Current Amount": current_amount}
-        st.session_state.goals = pd.concat([st.session_state.goals, pd.DataFrame([new_goal])], ignore_index=True)
-        st.success(f"Added goal '{goal_name}' with a target of {target_amount}!")
+# ---- Footer ----
+st.sidebar.info("Expense Tracker App © 2024")
