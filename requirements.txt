@@ -2,10 +2,6 @@ streamlit
 pandas
 plotly
 scikit-learn
-passlib
-cryptography
 pillow
 forex-python
 pytesseract
-hashlib
-io

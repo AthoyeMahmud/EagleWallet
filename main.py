@@ -7,37 +7,48 @@ from PIL import Image
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import random
-import hashlib
+import io
 
-# Initialize session state for expense data and user settings
+# Initialize session state for expenses and goals
 if 'expenses' not in st.session_state:
     st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Amount', 'Currency'])
+if 'goals' not in st.session_state:
+    st.session_state.goals = pd.DataFrame(columns=['Goal', 'Target Amount', 'Current Amount'])
 
-# Utility function for generating random expenses (used in sample data)
-def generate_sample_expenses(n=10):
-    categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
-    data = []
-    for i in range(n):
-        data.append({
-            "Date": pd.Timestamp('2024-01-01') + pd.DateOffset(days=random.randint(0, 365)),
-            "Category": random.choice(categories),
-            "Amount": random.randint(10, 500),
-            "Currency": random.choice(["USD", "EUR", "GBP"])
-        })
-    return pd.DataFrame(data)
+# Function to automatically categorize expenses based on description (you can expand this)
+def categorize_expense(description):
+    keywords = {
+        'food': ['restaurant', 'grocery', 'food'],
+        'travel': ['flight', 'hotel', 'taxi', 'uber'],
+        'shopping': ['clothing', 'electronics', 'mall'],
+        'entertainment': ['movie', 'cinema', 'concert'],
+        'health': ['doctor', 'medicine', 'pharmacy'],
+        'other': ['other']
+    }
+    for category, words in keywords.items():
+        if any(word in description.lower() for word in words):
+            return category
+    return 'other'
+
+# Utility for converting currencies
+def convert_currency(amount, from_currency, to_currency):
+    c = CurrencyRates()
+    try:
+        converted_amount = c.convert(from_currency, to_currency, amount)
+        return converted_amount
+    except:
+        return None
 
 # Sidebar navigation
-option = st.sidebar.selectbox('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization', 
-                                       'Currency Conversion', 'Expense Prediction', 'Generate Sample Data',
-                                       'Customizable Reports', 'Investment Tracking', 'Debt Payoff Strategies',
-                                       'Travel/Vacation Budgeting'])
+option = st.sidebar.selectbox('Menu', ['Home', 'Add Expense', 'Receipt Scanning', 'Expense Visualization',
+                                       'Goal Tracking', 'Expense Prediction', 'Travel Budgeting', 'Debt Tracking',
+                                       'Generate Sample Data', 'Import/Export'])
 
 # 1. Home
 if option == 'Home':
-    st.header("Welcome to the Expense Tracker App!")
+    st.header("Welcome to the Enhanced Expense Tracker App!")
     st.write("""
-    This app helps you track your expenses, scan receipts, convert currencies, predict your future expenses,
-    and visualize your spending habits. Additional features include debt tracking, investment tracking, and more.
+    This app helps you manage and track your expenses, scan receipts, set goals, predict spending trends, and much more!
     """)
 
 # 2. Add Expense Manually
@@ -46,12 +57,13 @@ if option == 'Add Expense':
 
     # Input form for expenses
     date = st.date_input("Expense Date")
-    category = st.selectbox("Expense Category", ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"])
+    description = st.text_input("Description")
+    category = st.selectbox("Expense Category", ["Auto", "Bills", "Entertainment", "Food", "Shopping", "Travel", "Other"])
     amount = st.number_input("Amount")
     currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
 
     if st.button("Add Expense"):
-        new_expense = {"Date": date, "Category": category, "Amount": amount, "Currency": currency}
+        new_expense = {"Date": date, "Category": category, "Description": description, "Amount": amount, "Currency": currency}
         st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
         st.success(f"Added {category} expense of {amount} {currency}!")
 
@@ -69,123 +81,161 @@ if option == 'Receipt Scanning':
         receipt_text = pytesseract.image_to_string(img)
         st.text_area("Extracted Text", receipt_text)
 
+        # Automatically categorize the expense based on the OCR text
+        category = categorize_expense(receipt_text)
+        amount = st.number_input("Enter the amount (as scanned may be inaccurate)", min_value=0.0)
+        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+
+        if st.button("Save Scanned Expense"):
+            new_expense = {"Date": pd.Timestamp.today(), "Category": category, "Description": receipt_text, "Amount": amount, "Currency": currency}
+            st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
+            st.success(f"Scanned {category} expense of {amount} {currency}!")
+
 # 4. Expense Visualization (Plotly)
 if option == 'Expense Visualization':
     st.header("Expense Visualization")
 
-    # If there are no expenses, prompt the user to add some.
     if st.session_state.expenses.empty:
         st.warning("No expenses recorded yet. Please add expenses first.")
     else:
+        # Filter by currency
+        selected_currency = st.selectbox("View expenses in currency", ["USD", "EUR", "GBP", "INR", "JPY"])
+        filtered_expenses = st.session_state.expenses.copy()
+
+        # Convert all expenses to selected currency
+        for i, row in filtered_expenses.iterrows():
+            if row['Currency'] != selected_currency:
+                converted = convert_currency(row['Amount'], row['Currency'], selected_currency)
+                if converted is not None:
+                    filtered_expenses.at[i, 'Amount'] = converted
+                    filtered_expenses.at[i, 'Currency'] = selected_currency
+
         # Visualize the expenses using Plotly
-        fig = px.bar(st.session_state.expenses, x="Date", y="Amount", color="Category", barmode="group")
+        fig = px.bar(filtered_expenses, x="Date", y="Amount", color="Category", barmode="group", title=f"Expenses in {selected_currency}")
         st.plotly_chart(fig)
 
-# 5. Currency Conversion (forex-python)
-if option == 'Currency Conversion':
-    st.header("Currency Conversion")
+# 5. Goal Tracking
+if option == 'Goal Tracking':
+    st.header("Track Your Goals")
 
-    c = CurrencyRates()
-    amount = st.number_input("Amount in your local currency (USD)")
-    to_currency = st.selectbox("Convert to", ["EUR", "GBP", "INR", "JPY"])
+    # Display current goals
+    st.subheader("Your Goals")
+    if st.session_state.goals.empty:
+        st.write("No goals set yet.")
+    else:
+        st.write(st.session_state.goals)
 
-    if st.button("Convert"):
-        try:
-            converted_amount = c.convert('USD', to_currency, amount)
-            st.write(f"Converted Amount: {converted_amount} {to_currency}")
-        except Exception as e:
-            st.error(f"Error during conversion: {e}")
+    # Add new goals
+    st.subheader("Set a New Goal")
+    goal_name = st.text_input("Goal Name")
+    target_amount = st.number_input("Target Amount")
+    current_amount = st.number_input("Current Amount", min_value=0.0)
+
+    if st.button("Add Goal"):
+        new_goal = {"Goal": goal_name, "Target Amount": target_amount, "Current Amount": current_amount}
+        st.session_state.goals = st.session_state.goals.append(new_goal, ignore_index=True)
+        st.success(f"Added goal '{goal_name}' with a target of {target_amount}!")
 
 # 6. Expense Prediction (Linear Regression)
 if option == 'Expense Prediction':
     st.header("Expense Prediction")
 
-    # Ensure that we have enough data for predictions
     if len(st.session_state.expenses) < 2:
         st.warning("You need at least two expenses to make predictions.")
     else:
-        # Create a dummy dataset based on current expenses for prediction
+        # Convert Date to proper format and sort expenses
         st.session_state.expenses['Date'] = pd.to_datetime(st.session_state.expenses['Date'])
         st.session_state.expenses.sort_values(by='Date', inplace=True)
+
+        # Prepare data for linear regression
         X = np.arange(len(st.session_state.expenses)).reshape(-1, 1)
         y = st.session_state.expenses['Amount'].values
 
-        # Linear Regression for expense prediction
+        # Train a simple linear regression model
         model = LinearRegression()
         model.fit(X, y)
 
-        # Predict next expense
+        # Predict the next expense
         next_month = len(X) + 1
         predicted_expense = model.predict([[next_month]])
 
         st.write(f"Predicted expense for next entry: {predicted_expense[0]:.2f} USD")
 
-        # Alert based on prediction
+        # Budget Alert
         budget_limit = st.number_input("Enter your budget limit", value=200.0)
         if predicted_expense[0] > budget_limit:
-            st.warning("You are likely to exceed your budget in the next period!")
+            st.warning(f"You are likely to exceed your budget of {budget_limit} in the next period!")
 
-# 7. Generate Sample Data
+# 7. Travel/Vacation Budgeting
+if option == 'Travel Budgeting':
+    st.header("Travel/Vacation Budgeting")
+
+    # Input for budgeting
+    trip_name = st.text_input("Trip Name")
+    travel_goal = st.number_input("Total Trip Budget")
+    trip_expenses = st.number_input("Current Trip Expenses", min_value=0.0)
+
+    remaining_budget = travel_goal - trip_expenses
+
+    st.write(f"Remaining travel budget for {trip_name}: {remaining_budget:.2f}")
+
+# 8. Debt Tracking
+if option == 'Debt Tracking':
+    st.header("Debt Tracking and Payoff Strategies")
+
+    # Input form for debts
+    debt_name = st.text_input("Debt Name (e.g., Car loan, Mortgage)")
+    total_debt = st.number_input("Total Debt Amount")
+    monthly_payment = st.number_input("Monthly Payment")
+
+    # Simple debt payoff calculation
+    months_to_payoff = total_debt / monthly_payment if monthly_payment > 0 else 0
+    st.write(f"It will take you {months_to_payoff:.2f} months to pay off {debt_name}.")
+
+# 9. Generate Sample Data
 if option == 'Generate Sample Data':
     st.header("Generate Sample Data")
+
+    def generate_sample_expenses(n=10):
+        categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
+        data = []
+        for i in range(n):
+            data.append({
+                "Date": pd.Timestamp('2024-01-01') + pd.DateOffset(days=random.randint(0, 365)),
+                "Category": random.choice(categories),
+                "Description": "Sample expense",
+                "Amount": random.randint(10, 500),
+                "Currency": random.choice(["USD", "EUR", "GBP", "INR", "JPY"])
+            })
+        return pd.DataFrame(data)
 
     if st.button("Generate Sample Data"):
         st.session_state.expenses = generate_sample_expenses()
         st.write(st.session_state.expenses)
 
-# 8. Customizable Reports (Import/Export CSV)
-if option == 'Customizable Reports':
+# 10. Import/Export Data
+if option == 'Import/Export':
     st.header("Import/Export Expense Data")
 
     # Export expenses as CSV
-    if not st.session_state.expenses.empty:
-        st.download_button("Download CSV", st.session_state.expenses.to_csv(index=False), "expenses.csv")
+    if st.session_state.expenses.empty:
+        st.warning("No expenses to export. Please add expenses first.")
+    else:
+        # Export expenses
+        csv = st.session_state.expenses.to_csv(index=False)
+        st.download_button(
+            label="Export Expenses to CSV",
+            data=csv,
+            file_name='expenses.csv',
+            mime='text/csv',
+        )
 
-    # Import CSV
-    uploaded_csv = st.file_uploader("Upload an expense CSV", type="csv")
-    if uploaded_csv is not None:
-        new_expenses = pd.read_csv(uploaded_csv)
-        st.session_state.expenses = st.session_state.expenses.append(new_expenses, ignore_index=True)
-        st.success("Data imported successfully!")
+    # Import expenses from CSV
+    st.subheader("Import Expenses from CSV")
+    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+
+    if uploaded_file is not None:
+        imported_expenses = pd.read_csv(uploaded_file)
+        st.session_state.expenses = pd.concat([st.session_state.expenses, imported_expenses], ignore_index=True)
+        st.success("Expenses imported successfully!")
         st.write(st.session_state.expenses)
-
-# 9. Investment Tracking (Basic)
-if option == 'Investment Tracking':
-    st.header("Investment Tracking")
-
-    # Simulated investment tracking (manual entry for now)
-    investment_amount = st.number_input("Investment Amount")
-    investment_type = st.selectbox("Investment Type", ["Stocks", "Bonds", "Real Estate", "Crypto", "Other"])
-    expected_return = st.number_input("Expected Return (%)")
-
-    if st.button("Track Investment"):
-        st.success(f"Tracking {investment_type} investment of {investment_amount} USD with an expected return of {expected_return}%.")
-
-# 10. Debt Payoff Strategies
-if option == 'Debt Payoff Strategies':
-    st.header("Debt Payoff Strategies")
-
-    debt_amount = st.number_input("Total Debt Amount")
-    monthly_payment = st.number_input("Monthly Payment Amount")
-    interest_rate = st.number_input("Interest Rate (%)")
-
-    if st.button("Calculate Payoff"):
-        # Simple debt payoff calculator (ignores compounding for simplicity)
-        months_to_payoff = debt_amount / monthly_payment
-        total_paid = months_to_payoff * monthly_payment
-
-        st.write(f"Months to Payoff: {months_to_payoff:.2f} months")
-        st.write(f"Total Paid (without compounding): {total_paid:.2f} USD")
-
-# 11. Travel/Vacation Budgeting
-if option == 'Travel/Vacation Budgeting':
-    st.header("Travel/Vacation Budgeting")
-
-    destination = st.text_input("Destination")
-    travel_budget = st.number_input("Travel Budget")
-    accommodation_budget = st.number_input("Accommodation Budget")
-    activity_budget = st.number_input("Activity Budget")
-
-    total_budget = travel_budget + accommodation_budget + activity_budget
-    if st.button("Calculate Total Budget"):
-        st.write(f"Total Budget for {destination}: {total_budget} USD")
