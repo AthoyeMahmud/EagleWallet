@@ -7,7 +7,7 @@ from PIL import Image
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import random
-import io
+from datetime import datetime, timedelta
 
 # Initialize session state for expenses and goals
 if 'expenses' not in st.session_state:
@@ -15,7 +15,7 @@ if 'expenses' not in st.session_state:
 if 'goals' not in st.session_state:
     st.session_state.goals = pd.DataFrame(columns=['Goal', 'Target Amount', 'Current Amount'])
 
-# Function to automatically categorize expenses based on description (you can expand this)
+# Function to automatically categorize expenses based on description
 def categorize_expense(description):
     keywords = {
         'food': ['restaurant', 'grocery', 'food'],
@@ -50,6 +50,7 @@ if option == 'Home':
     st.header("Welcome to the Enhanced Expense Tracker App!")
     st.write("""
     This app helps you manage and track your expenses, scan receipts, set goals, predict spending trends, and much more!
+    Use the sidebar to navigate through different features.
     """)
 
 elif option == 'Add Expense':
@@ -153,21 +154,40 @@ elif option == 'Debt Tracking':
 
 elif option == 'Generate Sample Data':
     st.header("Generate Sample Data")
-    def generate_sample_expenses(n=10):
+    
+    def generate_sample_expenses(start_date, end_date, currency, n=100):
         categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
+        date_range = (end_date - start_date).days
         data = []
-        for i in range(n):
+        for _ in range(n):
+            random_date = start_date + timedelta(days=random.randint(0, date_range))
             data.append({
-                "Date": pd.Timestamp('2024-01-01') + pd.DateOffset(days=random.randint(0, 365)),
+                "Date": random_date,
                 "Category": random.choice(categories),
                 "Description": "Sample expense",
-                "Amount": random.randint(10, 500),
-                "Currency": random.choice(["USD", "EUR", "GBP", "INR", "JPY"])
+                "Amount": round(random.uniform(10, 500), 2),
+                "Currency": currency
             })
         return pd.DataFrame(data)
 
+    currency = st.selectbox("Choose currency for sample data", ["USD", "EUR", "GBP", "INR", "JPY"])
+    time_range = st.selectbox("Choose time range", ["Months", "Years", "Decades"])
+    
+    if time_range == "Months":
+        num_months = st.slider("Number of months", 1, 12, 3)
+        start_date = datetime.now() - timedelta(days=30 * num_months)
+    elif time_range == "Years":
+        num_years = st.slider("Number of years", 1, 10, 1)
+        start_date = datetime.now() - timedelta(days=365 * num_years)
+    else:  # Decades
+        num_decades = st.slider("Number of decades", 1, 5, 1)
+        start_date = datetime.now() - timedelta(days=3650 * num_decades)
+    
+    end_date = datetime.now()
+
     if st.button("Generate Sample Data"):
-        st.session_state.expenses = generate_sample_expenses()
+        st.session_state.expenses = generate_sample_expenses(start_date, end_date, currency)
+        st.success(f"Generated sample data from {start_date.date()} to {end_date.date()} in {currency}")
         st.write(st.session_state.expenses)
 
 elif option == 'Import/Export':
