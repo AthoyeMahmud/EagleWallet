@@ -1,10 +1,7 @@
 streamlit
 pandas
-matplotlib
 plotly
 scikit-learn
-seaborn
-openai
 passlib
 cryptography
 pillow

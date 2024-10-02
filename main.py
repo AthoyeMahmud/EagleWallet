@@ -7,27 +7,70 @@ from PIL import Image
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import random
+import hashlib
 
 # Initialize session state for users and expense data
 if 'user_authenticated' not in st.session_state:
     st.session_state.user_authenticated = False
 if 'expenses' not in st.session_state:
     st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Amount', 'Currency'])
+if 'users' not in st.session_state:
+    # In-memory storage for user registration. Replace with DB in production.
+    st.session_state.users = {}
 
-# User Authentication (Basic)
+# Utility function to hash passwords for basic security (you can improve this)
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# User Registration and Authentication
+def register_user(username, password):
+    if username in st.session_state.users:
+        return False, "Username already exists. Choose a different one."
+    st.session_state.users[username] = hash_password(password)
+    return True, "User registered successfully!"
+
+def authenticate_user(username, password):
+    if username in st.session_state.users:
+        return st.session_state.users[username] == hash_password(password)
+    return False
+
+# Login and Registration logic
 st.title('Expense Tracker App')
 
 if not st.session_state.user_authenticated:
-    username = st.text_input('Username')
-    password = st.text_input('Password', type='password')
-    if st.button('Login'):
-        # For simplicity, hardcoded user credentials (can be expanded later)
-        if username == "admin" and password == "admin":
-            st.session_state.user_authenticated = True
-            st.success('Logged in successfully!')
-        else:
-            st.error('Invalid credentials')
+    auth_choice = st.sidebar.selectbox('Login or Signup', ['Login', 'Signup'])
 
+    if auth_choice == 'Signup':
+        st.header('Create an Account')
+        new_username = st.text_input('Enter a new username')
+        new_password = st.text_input('Enter a new password', type='password')
+        confirm_password = st.text_input('Confirm your password', type='password')
+
+        if st.button('Register'):
+            if new_password != confirm_password:
+                st.error('Passwords do not match!')
+            else:
+                success, message = register_user(new_username, new_password)
+                if success:
+                    st.success(message)
+                    st.info('You can now log in with your credentials.')
+                else:
+                    st.error(message)
+
+    elif auth_choice == 'Login':
+        st.header('Log In')
+        username = st.text_input('Username')
+        password = st.text_input('Password', type='password')
+
+        if st.button('Login'):
+            if authenticate_user(username, password):
+                st.session_state.user_authenticated = True
+                st.session_state.current_user = username
+                st.success('Logged in successfully!')
+            else:
+                st.error('Invalid username or password.')
+
+# Main App Features
 if st.session_state.user_authenticated:
 
     # Sidebar navigation
@@ -36,7 +79,7 @@ if st.session_state.user_authenticated:
 
     # 1. Home
     if option == 'Home':
-        st.header("Welcome to the Expense Tracker App!")
+        st.header(f"Welcome, {st.session_state.current_user}!")
         st.write("""
         This app helps you track your expenses, scan receipts, convert currencies, predict your future expenses,
         and visualize your spending habits.
@@ -70,8 +113,6 @@ if st.session_state.user_authenticated:
             # Perform OCR on the image
             receipt_text = pytesseract.image_to_string(img)
             st.text_area("Extracted Text", receipt_text)
-            
-            # In a real application, add regex to extract date, amount, and category from the receipt text.
 
     # 4. Expense Visualization (Plotly)
     if option == 'Expense Visualization':
