@@ -10,10 +10,13 @@ import random
 from datetime import datetime, timedelta
 
 # Initialize session state for expenses and goals
-if 'expenses' not in st.session_state:
-    st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Amount', 'Currency'])
-if 'goals' not in st.session_state:
-    st.session_state.goals = pd.DataFrame(columns=['Goal', 'Target Amount', 'Current Amount'])
+def initialize_session_state():
+    if 'expenses' not in st.session_state:
+        st.session_state.expenses = pd.DataFrame(columns=['Date', 'Category', 'Description', 'Amount', 'Currency'])
+    if 'goals' not in st.session_state:
+        st.session_state.goals = pd.DataFrame(columns=['Goal', 'Target Amount', 'Current Amount'])
+
+initialize_session_state()
 
 # Function to automatically categorize expenses based on description
 def categorize_expense(description):
@@ -34,9 +37,9 @@ def categorize_expense(description):
 def convert_currency(amount, from_currency, to_currency):
     c = CurrencyRates()
     try:
-        converted_amount = c.convert(from_currency, to_currency, amount)
-        return converted_amount
-    except:
+        return c.convert(from_currency, to_currency, amount)
+    except Exception as e:
+        st.error(f"Currency conversion failed: {e}")
         return None
 
 # Sidebar navigation
@@ -63,7 +66,7 @@ elif option == 'Add Expense':
 
     if st.button("Add Expense"):
         new_expense = {"Date": date, "Category": category, "Description": description, "Amount": amount, "Currency": currency}
-        st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
+        st.session_state.expenses = pd.concat([st.session_state.expenses, pd.DataFrame([new_expense])], ignore_index=True)
         st.success(f"Added {category} expense of {amount} {currency}!")
 
 elif option == 'Receipt Scanning':
@@ -81,7 +84,7 @@ elif option == 'Receipt Scanning':
 
         if st.button("Save Scanned Expense"):
             new_expense = {"Date": pd.Timestamp.today(), "Category": category, "Description": receipt_text, "Amount": amount, "Currency": currency}
-            st.session_state.expenses = st.session_state.expenses.append(new_expense, ignore_index=True)
+            st.session_state.expenses = pd.concat([st.session_state.expenses, pd.DataFrame([new_expense])], ignore_index=True)
             st.success(f"Scanned {category} expense of {amount} {currency}!")
 
 elif option == 'Expense Visualization':
@@ -91,12 +94,15 @@ elif option == 'Expense Visualization':
     else:
         selected_currency = st.selectbox("View expenses in currency", ["USD", "EUR", "GBP", "INR", "JPY"])
         filtered_expenses = st.session_state.expenses.copy()
-        for i, row in filtered_expenses.iterrows():
+
+        # Apply conversion efficiently
+        def convert_row(row):
             if row['Currency'] != selected_currency:
-                converted = convert_currency(row['Amount'], row['Currency'], selected_currency)
-                if converted is not None:
-                    filtered_expenses.at[i, 'Amount'] = converted
-                    filtered_expenses.at[i, 'Currency'] = selected_currency
+                return convert_currency(row['Amount'], row['Currency'], selected_currency)
+            return row['Amount']
+
+        filtered_expenses['Amount'] = filtered_expenses.apply(lambda row: convert_row(row), axis=1)
+        filtered_expenses['Currency'] = selected_currency
         fig = px.bar(filtered_expenses, x="Date", y="Amount", color="Category", barmode="group", title=f"Expenses in {selected_currency}")
         st.plotly_chart(fig)
 
@@ -115,98 +121,5 @@ elif option == 'Goal Tracking':
 
     if st.button("Add Goal"):
         new_goal = {"Goal": goal_name, "Target Amount": target_amount, "Current Amount": current_amount}
-        st.session_state.goals = st.session_state.goals.append(new_goal, ignore_index=True)
+        st.session_state.goals = pd.concat([st.session_state.goals, pd.DataFrame([new_goal])], ignore_index=True)
         st.success(f"Added goal '{goal_name}' with a target of {target_amount}!")
-
-elif option == 'Expense Prediction':
-    st.header("Expense Prediction")
-    if len(st.session_state.expenses) < 2:
-        st.warning("You need at least two expenses to make predictions.")
-    else:
-        st.session_state.expenses['Date'] = pd.to_datetime(st.session_state.expenses['Date'])
-        st.session_state.expenses.sort_values(by='Date', inplace=True)
-        X = np.arange(len(st.session_state.expenses)).reshape(-1, 1)
-        y = st.session_state.expenses['Amount'].values
-        model = LinearRegression()
-        model.fit(X, y)
-        next_month = len(X) + 1
-        predicted_expense = model.predict([[next_month]])
-        st.write(f"Predicted expense for next entry: {predicted_expense[0]:.2f} USD")
-        budget_limit = st.number_input("Enter your budget limit", value=200.0)
-        if predicted_expense[0] > budget_limit:
-            st.warning(f"You are likely to exceed your budget of {budget_limit} in the next period!")
-
-elif option == 'Travel Budgeting':
-    st.header("Travel/Vacation Budgeting")
-    trip_name = st.text_input("Trip Name")
-    travel_goal = st.number_input("Total Trip Budget")
-    trip_expenses = st.number_input("Current Trip Expenses", min_value=0.0)
-    remaining_budget = travel_goal - trip_expenses
-    st.write(f"Remaining travel budget for {trip_name}: {remaining_budget:.2f}")
-
-elif option == 'Debt Tracking':
-    st.header("Debt Tracking and Payoff Strategies")
-    debt_name = st.text_input("Debt Name (e.g., Car loan, Mortgage)")
-    total_debt = st.number_input("Total Debt Amount")
-    monthly_payment = st.number_input("Monthly Payment")
-    months_to_payoff = total_debt / monthly_payment if monthly_payment > 0 else 0
-    st.write(f"It will take you {months_to_payoff:.2f} months to pay off {debt_name}.")
-
-elif option == 'Generate Sample Data':
-    st.header("Generate Sample Data")
-    
-    def generate_sample_expenses(start_date, end_date, currency, n=100):
-        categories = ["Food", "Travel", "Shopping", "Entertainment", "Health", "Other"]
-        date_range = (end_date - start_date).days
-        data = []
-        for _ in range(n):
-            random_date = start_date + timedelta(days=random.randint(0, date_range))
-            data.append({
-                "Date": random_date,
-                "Category": random.choice(categories),
-                "Description": "Sample expense",
-                "Amount": round(random.uniform(10, 500), 2),
-                "Currency": currency
-            })
-        return pd.DataFrame(data)
-
-    currency = st.selectbox("Choose currency for sample data", ["USD", "EUR", "GBP", "INR", "JPY"])
-    time_range = st.selectbox("Choose time range", ["Months", "Years", "Decades"])
-    
-    if time_range == "Months":
-        num_months = st.slider("Number of months", 1, 12, 3)
-        start_date = datetime.now() - timedelta(days=30 * num_months)
-    elif time_range == "Years":
-        num_years = st.slider("Number of years", 1, 10, 1)
-        start_date = datetime.now() - timedelta(days=365 * num_years)
-    else:  # Decades
-        num_decades = st.slider("Number of decades", 1, 5, 1)
-        start_date = datetime.now() - timedelta(days=3650 * num_decades)
-    
-    end_date = datetime.now()
-
-    if st.button("Generate Sample Data"):
-        st.session_state.expenses = generate_sample_expenses(start_date, end_date, currency)
-        st.success(f"Generated sample data from {start_date.date()} to {end_date.date()} in {currency}")
-        st.write(st.session_state.expenses)
-
-elif option == 'Import/Export':
-    st.header("Import/Export Expense Data")
-    if st.session_state.expenses.empty:
-        st.warning("No expenses to export. Please add expenses first.")
-    else:
-        csv = st.session_state.expenses.to_csv(index=False)
-        st.download_button(
-            label="Export Expenses to CSV",
-            data=csv,
-            file_name='expenses.csv',
-            mime='text/csv',
-        )
-
-    st.subheader("Import Expenses from CSV")
-    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-    if uploaded_file is not None:
-        imported_expenses = pd.read_csv(uploaded_file)
-        st.session_state.expenses = pd.concat([st.session_state.expenses, imported_expenses], ignore_index=True)
-        st.success("Expenses imported successfully!")
-        st.write(st.session_state.expenses)
