@@ -1,163 +1,169 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
-from forex_python.converter import CurrencyRates
-import pytesseract
-from PIL import Image
-import io
-import yfinance as yf
-import os
+import datetime
+import random
 
-# Set page config
-st.set_page_config(
-    page_title="Expense Tracker", 
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# Sample data generation (single currency for now)
+def generate_sample_data(currency="USD", period="week"):
+    num_days = 7 # default 1 week
+    if period.lower() == "day": num_days = 1
+    elif period.lower() == "month": num_days = 30
+    elif period.lower() == "year": num_days = 365
+    elif period.lower() == "decade": num_days = 3650
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=num_days)
+    date_range = pd.date_range(start=start_date, end=end_date)
 
-# ======================== App-Wide Utility Functions ========================
-def currency_converter(amount, from_currency, to_currency):
-    c = CurrencyRates()
-    try:
-        converted_amount = c.convert(from_currency, to_currency, amount)
-        return converted_amount
-    except Exception as e:
-        st.error(f"Error during currency conversion: {e}")
-        return None
+    categories = ["Groceries", "Dining", "Travel", "Utilities", "Entertainment", "Shopping"]
+    data = []
+    for date in date_range:
+        category = random.choice(categories)
+        amount = round(random.uniform(5, 500), 2)  # Adjust range as needed
+        data.append({"Date": date.strftime('%Y-%m-%d'), "Category": category, "Amount": amount, "Currency": currency})
+    return data
 
-def receipt_scanner(image):
-    try:
-        text = pytesseract.image_to_string(image)
-        st.write("Scanned Text from Receipt:")
-        st.write(text)
-        return text
-    except Exception as e:
-        st.error(f"Error during receipt scanning: {e}")
-        return None
+# Placeholder for expense data (replace with database integration)
+if "expense_data" not in st.session_state:
+    st.session_state.expense_data = []
 
-def visualize_expenses(df):
-    if df.empty:
-        st.write("No data to visualize.")
+# Add Expense
+def add_expense():
+    with st.form("add_expense_form"):
+        date = st.date_input("Date")
+        category = st.selectbox("Category", ["Groceries", "Dining", "Travel", "Utilities", "Entertainment", "Shopping", "Other"])
+        amount = st.number_input("Amount", min_value=0.0, step=0.01) # allow cents/pennies
+        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "INR", "KRW", "MXN", "NZD", "SGD", "ZAR"])  # more currencies
+        description = st.text_input("Description (optional)")
+        submitted = st.form_submit_button("Add Expense")
+        if submitted:
+            st.session_state.expense_data.append({"Date": date.strftime('%Y-%m-%d'), "Category": category, "Amount": amount, "Currency": currency, "Description": description})
+            st.success("Expense added!")
+
+
+# View Expenses
+def view_expenses():
+    df = pd.DataFrame(st.session_state.expense_data)
+    if not df.empty:
+        st.write("Expenses Table:")
+        st.dataframe(df)
+        
+        # Expense Visualization (Plotly)
+        currency_counts = df.groupby('Currency')['Amount'].sum()
+        currency_fig = px.pie(currency_counts, values='Amount', names=currency_counts.index, title='Expenses by Currency')
+        st.plotly_chart(currency_fig)
+        
+        # Assuming Date is formatted as 'YYYY-MM-DD'
+        df['Date'] = pd.to_datetime(df['Date'])
+        daily_expenses = df.groupby('Date')['Amount'].sum()
+
+        date_fig = px.line(daily_expenses, x=daily_expenses.index, y='Amount', title="Daily Expense Trend")
+        st.plotly_chart(date_fig)
+        
+        category_fig = px.bar(df, x='Category', y='Amount', color='Currency', title='Expenses by Category')
+        st.plotly_chart(category_fig)
+
+        # Download button
+        csv = df.to_csv(index=False)
+        st.download_button("Download as CSV", data=csv, file_name="expenses.csv", mime="text/csv")
+
+
     else:
-        fig = px.pie(df, names='Category', values='Amount', title='Expense Breakdown')
-        st.plotly_chart(fig)
+        st.warning("No data available.")
 
-def save_to_csv(df, filename="expenses_report.csv"):
-    df.to_csv(filename, index=False)
-    st.success(f"Data exported successfully as {filename}")
 
-def load_sample_data():
-    data = {
-        'Date': pd.date_range(start="2023-01-01", periods=12, freq='M'),
-        'Category': np.random.choice(['Food', 'Transport', 'Utilities', 'Rent', 'Shopping'], 12),
-        'Amount': np.random.randint(50, 300, size=12),
-        'Currency': 'USD'
-    }
-    df = pd.DataFrame(data)
-    return df
+# Main Streamlit App
+def main():
+    st.title("Expense Tracker")
 
-def stock_recommendations(disposable_income):
-    st.write(f"Analyzing stocks for investment with disposable income of: ${disposable_income}")
-    # Recommend stocks using yfinance
-    stocks = ['AAPL', 'TSLA', 'GOOGL', 'MSFT', 'AMZN']
-    stock_data = yf.download(stocks, period='1d')
-    st.write(stock_data.tail(1))  # Display the last day's stock data
-    st.write("**Recommended Stocks:**")
-    st.write(stocks[:3])  # Simplified stock recommendations
+    menu = ["Add Expense", "View Expenses", "Generate Sample Data"]
+    choice = st.sidebar.selectbox("Menu", menu)
 
-# ======================== Sidebar Configuration ========================
-st.sidebar.title("Expense Tracker Menu")
-option = st.sidebar.selectbox(
-    "Choose a feature",
-    ['Add Expense', 'Scan Receipt', 'View Expenses', 'Expense Reports', 'Budget Alerts', 'Stock Recommendations']
-)
+    if choice == "Add Expense":
+        add_expense()
+    elif choice == "View Expenses":
+        view_expenses()
+    elif choice == "Generate Sample Data":
+        with st.form("generate_data_form"):
+            currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])  # More currency options
+            period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
+            submitted_generate = st.form_submit_button("Generate Sample Data")
+            if submitted_generate:
+                st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
+                st.success("Sample data generated!")
 
-# ======================== Expense Tracker Pages ========================
-# Placeholder DataFrame to store all expenses
-if 'expenses' not in st.session_state:
-    st.session_state['expenses'] = pd.DataFrame(columns=['Date', 'Category', 'Amount', 'Currency'])
 
-# Placeholder for disposable income (random for demo)
-if 'disposable_income' not in st.session_state:
-    st.session_state['disposable_income'] = 5000  # Random starting point
+# Debt Tracking
+def track_debts():
+    if "debts" not in st.session_state:
+        st.session_state.debts = []
 
-# ------------------------ Add Expense Page ------------------------
-if option == 'Add Expense':
-    st.title("Add a New Expense")
-    date = st.date_input("Expense Date")
-    category = st.selectbox("Category", ['Food', 'Transport', 'Utilities', 'Rent', 'Shopping'])
-    amount = st.number_input("Amount")
-    currency = st.selectbox("Currency", ['USD', 'EUR', 'GBP', 'JPY'])
-    
-    if st.button("Add Expense"):
-        st.session_state['expenses'] = st.session_state['expenses'].append({
-            'Date': date, 'Category': category, 'Amount': amount, 'Currency': currency
-        }, ignore_index=True)
-        st.success("Expense Added!")
+    with st.form("debt_form"):
+        debt_name = st.text_input("Debt Name (e.g., Credit Card, Loan)")
+        total_amount = st.number_input("Total Amount", min_value=0.0, step=0.01)
+        interest_rate = st.number_input("Annual Interest Rate (%)", min_value=0.0, step=0.01)
+        minimum_payment = st.number_input("Minimum Monthly Payment", min_value=0.0, step=0.01)
 
-# ------------------------ Scan Receipt Page ------------------------
-elif option == 'Scan Receipt':
-    st.title("Scan a Receipt")
-    uploaded_file = st.file_uploader("Choose a receipt image...", type=['jpg', 'png', 'jpeg'])
-    
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        scanned_text = receipt_scanner(image)
-        if scanned_text:
-            st.write("Extracted Data: ", scanned_text)
+        submitted_debt = st.form_submit_button("Add Debt")
+        if submitted_debt:
+            st.session_state.debts.append({"Debt Name": debt_name, "Total Amount": total_amount, "Interest Rate": interest_rate, "Minimum Payment": minimum_payment})
+            st.success("Debt added!")
 
-# ------------------------ View Expenses Page ------------------------
-elif option == 'View Expenses':
-    st.title("View All Expenses")
-    df = st.session_state['expenses']
-    
-    st.write("Expense Data:")
-    st.dataframe(df)
-    
-    visualize_expenses(df)
-    
-    # Save or Load Expenses
-    if st.button("Export to CSV"):
-        save_to_csv(df)
 
-# ------------------------ Expense Reports Page ------------------------
-elif option == 'Expense Reports':
-    st.title("Generate Expense Reports")
-    
-    report_type = st.selectbox("Report Type", ['Monthly', 'Yearly'])
-    
-    df = st.session_state['expenses']
-    df['Month'] = pd.to_datetime(df['Date']).dt.month
-    df['Year'] = pd.to_datetime(df['Date']).dt.year
-    
-    if report_type == 'Monthly':
-        monthly_report = df.groupby('Month').sum()
-        st.write("Monthly Report")
-        st.dataframe(monthly_report)
+    debts_df = pd.DataFrame(st.session_state.debts)
+    if not debts_df.empty:
+        st.write("Current Debts:")
+        st.dataframe(debts_df)
+        # ... (Debt repayment strategies, visualizations can be added here later)
     else:
-        yearly_report = df.groupby('Year').sum()
-        st.write("Yearly Report")
-        st.dataframe(yearly_report)
+        st.write("No debts tracked yet.")
 
-# ------------------------ Budget Alerts Page ------------------------
-elif option == 'Budget Alerts':
-    st.title("Set Budget Alerts")
-    
-    budget_limit = st.number_input("Enter your monthly budget limit:", value=2000)
-    current_expenses = st.session_state['expenses']['Amount'].sum()
-    
-    if current_expenses > budget_limit:
-        st.error(f"Alert! You have exceeded your budget limit of ${budget_limit}.")
-    else:
-        st.success(f"You are within your budget. Current expenses: ${current_expenses}")
+# Predictions (Basic Linear Regression)
 
-# ------------------------ Stock Recommendations Page ------------------------
-elif option == 'Stock Recommendations':
-    st.title("Stock Recommendations")
-    
-    disposable_income = st.number_input("Enter your disposable income for investments:", value=st.session_state['disposable_income'])
-    stock_recommendations(disposable_income)
+def predict_expenses():
+    expenses_df = pd.DataFrame(st.session_state.expense_data)
+    if expenses_df.empty or len(expenses_df) < 5:  # Need enough data for basic prediction
+        st.warning("Not enough expense data for predictions. At least 5 data points are required.")
+        return
 
-# ======================== Footer ========================
-st.sidebar.write("© 2024 - Expense Tracker App")
+    expenses_df['Date'] = pd.to_datetime(expenses_df['Date'])
+    expenses_df['Days'] = (expenses_df['Date'] - expenses_df['Date'].min()).dt.days
+
+    X = expenses_df['Days'].values.reshape(-1, 1)  # Use days as predictor
+    y = expenses_df['Amount'].values
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    future_days = np.array([i for i in range(expenses_df['Days'].max(), expenses_df['Days'].max() + 31)]).reshape(-1, 1)
+    predicted_amount = model.predict(future_days)
+
+
+    # Visualization using Plotly
+    fig = px.line(x=future_days.flatten(), y=predicted_amount, title="30-Day Expense Prediction (Linear Regression)", labels={'x': 'Days from First Recorded Expense', 'y': 'Predicted Amount'})
+
+    fig.add_scatter(x=expenses_df['Days'], y=expenses_df['Amount'], mode='markers', name="Actual Expenses")
+    st.plotly_chart(fig)
+
+
+def main():
+    st.title("Expense Tracker")
+
+    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data"] # Added "Track Debts" and "Predict Expenses"
+    choice = st.sidebar.selectbox("Menu", menu)
+
+
+    if choice == "Add Expense":
+        add_expense()  # Currency and description are already included.
+    elif choice == "View Expenses":
+        view_expenses()
+    elif choice == "Track Debts":
+        track_debts()
+    elif choice == "Predict Expenses":
+        predict_expenses()
+    elif choice == "Generate Sample Data":
+       # ... (generate sample data remains same)
+
+
+if __name__ == "__main__":
+    main()
