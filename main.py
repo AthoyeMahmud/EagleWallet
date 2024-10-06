@@ -30,6 +30,7 @@ def generate_sample_data(currency="USD", period="week"):
     return data
 
 def add_expense():
+    st.subheader("Add Expense")
     with st.form("add_expense_form"):
         date = st.date_input("Date")
         category = st.selectbox("Category", ["Groceries", "Dining", "Travel", "Utilities", "Entertainment", "Shopping", "Other"])
@@ -45,6 +46,7 @@ def add_expense():
             st.warning("Please enter a valid amount.")
 
 def view_expenses():
+    st.subheader("View Expenses")
     df = pd.DataFrame(st.session_state.expense_data)
     if not df.empty:
         st.write("Expenses Table:")
@@ -64,6 +66,7 @@ def view_expenses():
         st.warning("No data available.")
 
 def track_debts():
+    st.subheader("Track Debts")
     with st.form("debt_form"):
         debt_name = st.text_input("Debt Name")
         total_amount = st.number_input("Total Amount", min_value=0.0, step=0.01)
@@ -82,6 +85,7 @@ def track_debts():
         st.write("No debts tracked yet.")
 
 def predict_expenses():
+    st.subheader("Predict Expenses")
     expenses_df = pd.DataFrame(st.session_state.expense_data)
     if len(expenses_df) < 5:
         st.warning("Not enough expense data for predictions. At least 5 data points are required.")
@@ -106,26 +110,6 @@ def predict_expenses():
         st.error(f"Prediction failed: {e}")
 
 ##Interface and navigation
-
-def add_expense():
-    st.subheader("Add Expense")
-    # Add logic for adding expenses here
-
-def view_expenses():
-    st.subheader("View Expenses")
-    # Add logic for viewing expenses here
-
-def track_debts():
-    st.subheader("Track Debts")
-    # Add logic for tracking debts here
-
-def predict_expenses():
-    st.subheader("Predict Expenses")
-    # Add logic for predicting expenses here
-
-def generate_sample_data(currency, period):
-    # Sample data generation logic
-    return f"Sample data for {period} in {currency}"
 
 def main():
     st.title("EagleWallet")
