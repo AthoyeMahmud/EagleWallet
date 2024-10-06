@@ -106,21 +106,22 @@ def predict_expenses():
         st.error(f"Prediction failed: {e}")
 
 ##Interface and navigation
+
 def add_expense():
     st.subheader("Add Expense")
-    # Add logic for adding expenses
+    # Add logic for adding expenses here
 
 def view_expenses():
     st.subheader("View Expenses")
-    # Add logic for viewing expenses
+    # Add logic for viewing expenses here
 
 def track_debts():
     st.subheader("Track Debts")
-    # Add logic for tracking debts
+    # Add logic for tracking debts here
 
 def predict_expenses():
     st.subheader("Predict Expenses")
-    # Add logic for predicting expenses
+    # Add logic for predicting expenses here
 
 def generate_sample_data(currency, period):
     # Sample data generation logic
@@ -129,36 +130,20 @@ def generate_sample_data(currency, period):
 def main():
     st.title("EagleWallet")
 
-    # Initialize the session state for storing the selected menu option
-    if 'menu_choice' not in st.session_state:
-        st.session_state.menu_choice = "None"
-
-    # Sidebar Menu using expanders
-    with st.sidebar.expander("Add Expense", expanded=False):
-        st.session_state.menu_choice = "Add Expense"
-
-    with st.sidebar.expander("View Expenses", expanded=False):
-        st.session_state.menu_choice = "View Expenses"
-
-    with st.sidebar.expander("Track Debts", expanded=False):
-        st.session_state.menu_choice = "Track Debts"
-
-    with st.sidebar.expander("Predict Expenses", expanded=False):
-        st.session_state.menu_choice = "Predict Expenses"
-
-    with st.sidebar.expander("Generate Sample Data", expanded=False):
-        st.session_state.menu_choice = "Generate Sample Data"
+    # Sidebar Menu using st.radio for navigation
+    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data"]
+    choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
-    if st.session_state.menu_choice == "Add Expense":
+    if choice == "Add Expense":
         add_expense()
-    elif st.session_state.menu_choice == "View Expenses":
+    elif choice == "View Expenses":
         view_expenses()
-    elif st.session_state.menu_choice == "Track Debts":
+    elif choice == "Track Debts":
         track_debts()
-    elif st.session_state.menu_choice == "Predict Expenses":
+    elif choice == "Predict Expenses":
         predict_expenses()
-    elif st.session_state.menu_choice == "Generate Sample Data":
+    elif choice == "Generate Sample Data":
         with st.form("generate_data_form"):
             currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])
             period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
