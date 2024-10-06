@@ -6,6 +6,7 @@ import random
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import requests
+import yfinance as yf
 
 # Centralized session state initialization
 def initialize_session_state():
@@ -114,7 +115,6 @@ def upload_csv():
     st.subheader("Import CSV File")
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     if uploaded_file is not None:
-        # Read the file into pandas DataFrame
         df = pd.read_csv(uploaded_file)
         st.write("CSV Data:")
         st.dataframe(df)
@@ -126,34 +126,36 @@ def upload_csv():
 
 def live_currency_rates():
     st.subheader("Live Currency Exchange Rates (BDT)")
-    
-    # You can replace this with a real API request for live data
-    # For demonstration, we'll use mock data
-    url = 'https://api.exchangerate-api.com/v4/latest/BDT'  # Example, replace with actual API
-    response = requests.get(url).json()
-
-    # Display top currencies with BDT
-    currencies = {"USD": "US Dollar", "EUR": "Euro", "GBP": "British Pound", "INR": "Indian Rupee"}
-    
-    rates = {currency: response["rates"][currency] for currency in currencies}
-    st.table(pd.DataFrame(rates.items(), columns=["Currency", "Exchange Rate"]))
-
-def live_stock_prices():
-    st.subheader("Top 100 Live Stocks")
-    
-    # You can replace this with a real API request for live stock data
-    # For demonstration, we'll use mock data
-    stocks = {
-        "AAPL": {"name": "Apple Inc.", "price": 150.12},
-        "GOOGL": {"name": "Alphabet Inc.", "price": 2800.23},
-        "TSLA": {"name": "Tesla Inc.", "price": 1020.50},
-        # More mock stocks...
+    currency_pairs = {
+        "USD/BDT": "USD/BDT",
+        "EUR/BDT": "EUR/BDT",
+        "GBP/BDT": "GBP/BDT"
     }
 
-    # Display stock table
+    # Fetching data from Yahoo Finance using yfinance
+    currency_data = {}
+    for pair in currency_pairs:
+        ticker = yf.Ticker(pair.split("/")[0] + pair.split("/")[1] + "=X")
+        currency_data[pair] = ticker.history(period="1d")["Close"].iloc[-1]
+
+    df_currency = pd.DataFrame(list(currency_data.items()), columns=["Currency Pair", "Exchange Rate (BDT)"])
+    st.table(df_currency)
+
+
+def live_stock_prices():
+    st.subheader("Live Stocks")
+    
+    stock_tickers = ["AAPL", "GOOGL", "TSLA", "MSFT", "AMZN"]
+    
+    stock_data = {}
+    for ticker in stock_tickers:
+        stock = yf.Ticker(ticker)
+        stock_data[ticker] = stock.history(period="1d")["Close"].iloc[-1]
+
     stock_df = pd.DataFrame(stocks).T  # Transpose to match stock format
     stock_df.columns = ["Company Name", "Price (USD)"]
     st.table(stock_df)
+
 
 ##Interface and navigation
 
