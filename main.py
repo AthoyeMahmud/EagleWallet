@@ -110,6 +110,26 @@ def track_debts():
     else:
         st.write("No debts tracked yet.")
 
+def budget_planning():
+    st.subheader("Budget Planning")
+    with st.form("budget_form"):
+        categories = ["Groceries", "Dining", "Travel", "Utilities", "Entertainment", "Shopping"]
+        budget_data = {cat: st.number_input(f"Budget for {cat}", min_value=0.0, step=0.01) for cat in categories}
+        submitted_budget = st.form_submit_button("Set Budget")
+        if submitted_budget:
+            st.session_state.budget = budget_data
+            st.success("Budgets set!")
+
+    # Compare expenses to budget
+    if "expense_data" in st.session_state and st.session_state.expense_data:
+        df = pd.DataFrame(st.session_state.expense_data)
+        category_expenses = df.groupby("Category")["Amount"].sum()
+        if "budget" in st.session_state:
+            budget = pd.Series(st.session_state.budget)
+            comparison = pd.DataFrame({"Spent": category_expenses, "Budget": budget})
+            st.write("Budget vs Actual Expenses")
+            st.dataframe(comparison.fillna(0))
+
 def predict_expenses():
     st.subheader("Predict Expenses")
     expenses_df = pd.DataFrame(st.session_state.expense_data)
@@ -180,14 +200,12 @@ def live_stock_prices():
     stock_df.columns = ["Company Name", "Price (USD)"]
     st.table(stock_df)
 
-##########################
-##Interface and navigation
-
+#Interface and navigation
 def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Income","View Incomes","Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
+    menu = ["Add Income","View Incomes","Add Expense", "View Expenses", "Track Debts","Budget Planning" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
@@ -201,6 +219,8 @@ def main():
         view_expenses()
     elif choice == "Track Debts":
         track_debts()
+    elif choice == "Budget Planning":
+        budget_planning() 
     elif choice == "Predict Expenses":
         predict_expenses()
     elif choice == "Generate Sample Data":
