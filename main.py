@@ -105,35 +105,67 @@ def predict_expenses():
     except Exception as e:
         st.error(f"Prediction failed: {e}")
 
+##Interface and navigation
+def add_expense():
+    st.subheader("Add Expense")
+    # Add logic for adding expenses
+
+def view_expenses():
+    st.subheader("View Expenses")
+    # Add logic for viewing expenses
+
+def track_debts():
+    st.subheader("Track Debts")
+    # Add logic for tracking debts
+
+def predict_expenses():
+    st.subheader("Predict Expenses")
+    # Add logic for predicting expenses
+
+def generate_sample_data(currency, period):
+    # Sample data generation logic
+    return f"Sample data for {period} in {currency}"
+
 def main():
     st.title("EagleWallet")
 
-    # Sidebar Menu
+    # Initialize the session state for storing the selected menu option
+    if 'menu_choice' not in st.session_state:
+        st.session_state.menu_choice = "None"
+
+    # Sidebar Menu using expanders
     with st.sidebar.expander("Add Expense", expanded=False):
-        if st.button("Go to Add Expense"):
-            add_expense()
+        st.session_state.menu_choice = "Add Expense"
 
     with st.sidebar.expander("View Expenses", expanded=False):
-        if st.button("Go to View Expenses"):
-            view_expenses()
+        st.session_state.menu_choice = "View Expenses"
 
     with st.sidebar.expander("Track Debts", expanded=False):
-        if st.button("Go to Track Debts"):
-            track_debts()
+        st.session_state.menu_choice = "Track Debts"
 
     with st.sidebar.expander("Predict Expenses", expanded=False):
-        if st.button("Go to Predict Expenses"):
-            predict_expenses()
+        st.session_state.menu_choice = "Predict Expenses"
 
     with st.sidebar.expander("Generate Sample Data", expanded=False):
-        if st.button("Go to Generate Sample Data"):
-            with st.form("generate_data_form"):
-                currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])
-                period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
-                submitted_generate = st.form_submit_button("Generate Sample Data")
-                if submitted_generate:
-                    st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
-                    st.success("Sample data generated!")
+        st.session_state.menu_choice = "Generate Sample Data"
+
+    # Show appropriate content based on the user's selection
+    if st.session_state.menu_choice == "Add Expense":
+        add_expense()
+    elif st.session_state.menu_choice == "View Expenses":
+        view_expenses()
+    elif st.session_state.menu_choice == "Track Debts":
+        track_debts()
+    elif st.session_state.menu_choice == "Predict Expenses":
+        predict_expenses()
+    elif st.session_state.menu_choice == "Generate Sample Data":
+        with st.form("generate_data_form"):
+            currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])
+            period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
+            submitted_generate = st.form_submit_button("Generate Sample Data")
+            if submitted_generate:
+                st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
+                st.success("Sample data generated!")
 
     # Team member names at the bottom of the sidebar
     st.sidebar.markdown("---")  # Separator line
