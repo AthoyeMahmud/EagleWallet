@@ -91,6 +91,37 @@ def view_expenses():
     else:
         st.warning("No data available.")
 
+def add_recurring_transaction():
+    st.subheader("Add Recurring Transaction")
+    with st.form("recurring_transaction_form"):
+        transaction_type = st.selectbox("Type", ["Expense", "Income"])
+        amount = st.number_input("Amount", min_value=0.0, step=0.01)
+        category_or_source = st.text_input("Category or Source")
+        recurrence_interval = st.selectbox("Recurrence Interval", ["Weekly", "Monthly"])
+        start_date = st.date_input("Start Date")
+        description = st.text_input("Description (optional)")
+        submitted = st.form_submit_button("Add Recurring Transaction")
+
+        if submitted:
+            transaction = {
+                "Type": transaction_type,
+                "Amount": amount,
+                "Category_or_Source": category_or_source,
+                "Recurrence": recurrence_interval,
+                "Start Date": start_date,
+                "Description": description
+            }
+            if 'recurring_transactions' not in st.session_state:
+                st.session_state['recurring_transactions'] = []
+            st.session_state.recurring_transactions.append(transaction)
+            st.success(f"Recurring {transaction_type.lower()} added!")
+
+    # Display existing recurring transactions
+    if 'recurring_transactions' in st.session_state:
+        st.write("Recurring Transactions")
+        df_recurring = pd.DataFrame(st.session_state.recurring_transactions)
+        st.dataframe(df_recurring)
+
 def track_debts():
     st.subheader("Track Debts")
     with st.form("debt_form"):
@@ -129,6 +160,27 @@ def budget_planning():
             comparison = pd.DataFrame({"Spent": category_expenses, "Budget": budget})
             st.write("Budget vs Actual Expenses")
             st.dataframe(comparison.fillna(0))
+
+def savings_goals():
+    st.subheader("Savings Goals")
+    with st.form("savings_goal_form"):
+        goal_name = st.text_input("Goal Name")
+        target_amount = st.number_input("Target Amount", min_value=0.0, step=0.01)
+        current_savings = st.number_input("Current Savings", min_value=0.0, step=0.01)
+        submitted_goal = st.form_submit_button("Add Savings Goal")
+        if submitted_goal:
+            goal = {"Goal Name": goal_name, "Target Amount": target_amount, "Current Savings": current_savings}
+            if 'savings_goals' not in st.session_state:
+                st.session_state['savings_goals'] = []
+            st.session_state.savings_goals.append(goal)
+            st.success("Savings Goal added!")
+
+    # Display savings goals and progress
+    if 'savings_goals' in st.session_state:
+        df_savings = pd.DataFrame(st.session_state.savings_goals)
+        df_savings['Progress (%)'] = (df_savings['Current Savings'] / df_savings['Target Amount']) * 100
+        st.write("Savings Goals Progress")
+        st.dataframe(df_savings)
 
 def predict_expenses():
     st.subheader("Predict Expenses")
@@ -205,7 +257,7 @@ def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Income","View Incomes","Add Expense", "View Expenses", "Track Debts","Budget Planning" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
+    menu = ["Add Income","View Incomes","Add Expense", "View Expenses","Add Recurring Transaction", "Track Debts","Budget Planning" ,"Savings Goals" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
@@ -217,10 +269,14 @@ def main():
         add_expense()
     elif choice == "View Expenses":
         view_expenses()
+    elif choice == "Add Recurring Transaction":
+        add_recurring_transaction()
     elif choice == "Track Debts":
         track_debts()
     elif choice == "Budget Planning":
-        budget_planning() 
+        budget_planning()
+    elif choice == "Savings Goals":
+        savings_goals()
     elif choice == "Predict Expenses":
         predict_expenses()
     elif choice == "Generate Sample Data":

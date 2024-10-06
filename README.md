@@ -1,2 +1,2 @@
 # EagleWallet
-Budget Tracker with AI Assistant
+Intelligent Income and Expense Tracker
