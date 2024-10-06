@@ -108,50 +108,40 @@ def predict_expenses():
 def main():
     st.title("EagleWallet")
 
-    # Add Expense Section
+    # Sidebar Menu
     with st.sidebar.expander("Add Expense", expanded=False):
-        pass
+        if st.button("Go to Add Expense"):
+            add_expense()
 
-    # View Expenses Section
     with st.sidebar.expander("View Expenses", expanded=False):
-        pass
+        if st.button("Go to View Expenses"):
+            view_expenses()
 
-    # Track Debts Section
     with st.sidebar.expander("Track Debts", expanded=False):
-        pass
+        if st.button("Go to Track Debts"):
+            track_debts()
 
-    # Predict Expenses Section
     with st.sidebar.expander("Predict Expenses", expanded=False):
-        pass
+        if st.button("Go to Predict Expenses"):
+            predict_expenses()
 
-    # Generate Sample Data Section
     with st.sidebar.expander("Generate Sample Data", expanded=False):
-        pass
+        if st.button("Go to Generate Sample Data"):
+            with st.form("generate_data_form"):
+                currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])
+                period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
+                submitted_generate = st.form_submit_button("Generate Sample Data")
+                if submitted_generate:
+                    st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
+                    st.success("Sample data generated!")
 
     # Team member names at the bottom of the sidebar
     st.sidebar.markdown("---")  # Separator line
     st.sidebar.write("Project by:")
-    st.sidebar.write("• Code Economists")
+    st.sidebar.write("Code Economists")
     st.sidebar.write("• Suhrab")
     st.sidebar.write("• Mashuk")
     st.sidebar.write("• Athoye")
-
-    if choice == "Add Expense":
-        add_expense()
-    elif choice == "View Expenses":
-        view_expenses()
-    elif choice == "Track Debts":
-        track_debts()
-    elif choice == "Predict Expenses":
-        predict_expenses()
-    elif choice == "Generate Sample Data":
-        with st.form("generate_data_form"):
-            currency_sample = st.selectbox("Select Currency for Sample Data", ["USD", "EUR", "GBP"])
-            period_sample = st.selectbox("Sample Data Time Period", ["Day", "Week", "Month", "Year", "Decade"])
-            submitted_generate = st.form_submit_button("Generate Sample Data")
-            if submitted_generate:
-                st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
-                st.success("Sample data generated!")
 
 if __name__ == "__main__":
     main()
