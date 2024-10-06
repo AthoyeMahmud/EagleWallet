@@ -128,11 +128,6 @@ def main():
     with st.sidebar.expander("Generate Sample Data", expanded=False):
         st.write("Option to generate sample data")
 
-def main():
-    st.title("EagleWallet")
-    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data"]
-    choice = st.sidebar.selectbox("Menu", menu)
-
     if choice == "Add Expense":
         add_expense()
     elif choice == "View Expenses":
