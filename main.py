@@ -47,6 +47,30 @@ def add_expense():
         else:
             st.warning("Please enter a valid amount.")
 
+def add_income():
+    st.subheader("Add Income")
+    with st.form("add_income_form"):
+        date = st.date_input("Date", key="income_date")
+        source = st.text_input("Income Source")
+        amount = st.number_input("Amount", min_value=0.0, step=0.01, key="income_amount")
+        currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "BDT", "Other"], key="income_currency")
+        description = st.text_input("Description (optional)", key="income_description")
+        submitted = st.form_submit_button("Add Income")
+        if submitted and amount > 0:
+            income = {"Date": date, "Source": source, "Amount": amount, "Currency": currency, "Description": description}
+            if 'income_data' not in st.session_state:
+                st.session_state['income_data'] = []
+            st.session_state.income_data.append(income)
+            st.success("Income added!")
+
+def view_incomes():
+    st.subheader("View Incomes")
+    if 'income_data' in st.session_state and st.session_state.income_data:
+        df_income = pd.DataFrame(st.session_state.income_data)
+        st.dataframe(df_income)
+    else:
+        st.warning("No income data available.")
+
 def view_expenses():
     st.subheader("View Expenses")
     df = pd.DataFrame(st.session_state.expense_data)
@@ -156,18 +180,22 @@ def live_stock_prices():
     stock_df.columns = ["Company Name", "Price (USD)"]
     st.table(stock_df)
 
-
+##########################
 ##Interface and navigation
 
 def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
+    menu = ["Add Income","View Incomes","Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
-    if choice == "Add Expense":
+    if choice == "Add Income":
+        add_income()
+    elif choice == "View Incomes":
+        view_incomes()
+    elif choice == "Add Expense":
         add_expense()
     elif choice == "View Expenses":
         view_expenses()
