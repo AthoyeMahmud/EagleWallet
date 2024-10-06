@@ -7,3 +7,4 @@ pillow
 forex-python
 pytesseract
 yfinance
+requests

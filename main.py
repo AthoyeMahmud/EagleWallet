@@ -5,6 +5,7 @@ import datetime
 import random
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import requests
 
 # Centralized session state initialization
 def initialize_session_state():
@@ -109,13 +110,58 @@ def predict_expenses():
     except Exception as e:
         st.error(f"Prediction failed: {e}")
 
+def upload_csv():
+    st.subheader("Import CSV File")
+    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+    if uploaded_file is not None:
+        # Read the file into pandas DataFrame
+        df = pd.read_csv(uploaded_file)
+        st.write("CSV Data:")
+        st.dataframe(df)
+        
+        # Export CSV option
+        st.subheader("Export CSV")
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(label="Download CSV", data=csv, file_name='exported_data.csv', mime='text/csv')
+
+def live_currency_rates():
+    st.subheader("Live Currency Exchange Rates (BDT)")
+    
+    # You can replace this with a real API request for live data
+    # For demonstration, we'll use mock data
+    url = 'https://api.exchangerate-api.com/v4/latest/BDT'  # Example, replace with actual API
+    response = requests.get(url).json()
+
+    # Display top currencies with BDT
+    currencies = {"USD": "US Dollar", "EUR": "Euro", "GBP": "British Pound", "INR": "Indian Rupee"}
+    
+    rates = {currency: response["rates"][currency] for currency in currencies}
+    st.table(pd.DataFrame(rates.items(), columns=["Currency", "Exchange Rate"]))
+
+def live_stock_prices():
+    st.subheader("Top 100 Live Stocks")
+    
+    # You can replace this with a real API request for live stock data
+    # For demonstration, we'll use mock data
+    stocks = {
+        "AAPL": {"name": "Apple Inc.", "price": 150.12},
+        "GOOGL": {"name": "Alphabet Inc.", "price": 2800.23},
+        "TSLA": {"name": "Tesla Inc.", "price": 1020.50},
+        # More mock stocks...
+    }
+
+    # Display stock table
+    stock_df = pd.DataFrame(stocks).T  # Transpose to match stock format
+    stock_df.columns = ["Company Name", "Price (USD)"]
+    st.table(stock_df)
+
 ##Interface and navigation
 
 def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data"]
+    menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
@@ -135,6 +181,12 @@ def main():
             if submitted_generate:
                 st.session_state.expense_data = generate_sample_data(currency=currency_sample, period=period_sample)
                 st.success("Sample data generated!")
+    elif choice == "Import/Export CSV":
+        upload_csv()
+    elif choice == "Live Currency Rates":
+        live_currency_rates()
+    elif choice == "Top 100 Stocks":
+        live_stock_prices()                
 
     # Team member names at the bottom of the sidebar
     st.sidebar.markdown("---")  # Separator line
