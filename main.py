@@ -109,24 +109,19 @@ def main():
     st.title("EagleWallet")
 
     # Add Expense Section
-    with st.sidebar.expander("Add Expense", expanded=False):
-        st.write("Option to add an expense")
+    with st.sidebar.expander("Add Expense", expanded=False)
 
     # View Expenses Section
-    with st.sidebar.expander("View Expenses", expanded=False):
-        st.write("Option to view all expenses")
+    with st.sidebar.expander("View Expenses", expanded=False)
 
     # Track Debts Section
-    with st.sidebar.expander("Track Debts", expanded=False):
-        st.write("Option to track debts")
+    with st.sidebar.expander("Track Debts", expanded=False)
 
     # Predict Expenses Section
-    with st.sidebar.expander("Predict Expenses", expanded=False):
-        st.write("Option to predict expenses")
+    with st.sidebar.expander("Predict Expenses", expanded=False)
 
     # Generate Sample Data Section
-    with st.sidebar.expander("Generate Sample Data", expanded=False):
-        st.write("Option to generate sample data")
+    with st.sidebar.expander("Generate Sample Data", expanded=False)
 
     if choice == "Add Expense":
         add_expense()
