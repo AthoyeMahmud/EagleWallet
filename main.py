@@ -109,19 +109,32 @@ def main():
     st.title("EagleWallet")
 
     # Add Expense Section
-    with st.sidebar.expander("Add Expense", expanded=False)
+    with st.sidebar.expander("Add Expense", expanded=False):
+        pass
 
     # View Expenses Section
-    with st.sidebar.expander("View Expenses", expanded=False)
+    with st.sidebar.expander("View Expenses", expanded=False):
+        pass
 
     # Track Debts Section
-    with st.sidebar.expander("Track Debts", expanded=False)
+    with st.sidebar.expander("Track Debts", expanded=False):
+        pass
 
     # Predict Expenses Section
-    with st.sidebar.expander("Predict Expenses", expanded=False)
+    with st.sidebar.expander("Predict Expenses", expanded=False):
+        pass
 
     # Generate Sample Data Section
-    with st.sidebar.expander("Generate Sample Data", expanded=False)
+    with st.sidebar.expander("Generate Sample Data", expanded=False):
+        pass
+
+    # Team member names at the bottom of the sidebar
+    st.sidebar.markdown("---")  # Separator line
+    st.sidebar.write("Project by:")
+    st.sidebar.write("• Code Economists")
+    st.sidebar.write("• Suhrab")
+    st.sidebar.write("• Mashuk")
+    st.sidebar.write("• Athoye")
 
     if choice == "Add Expense":
         add_expense()
