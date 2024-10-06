@@ -106,7 +106,30 @@ def predict_expenses():
         st.error(f"Prediction failed: {e}")
 
 def main():
-    st.title("Expense Tracker")
+    st.title("EagleWallet")
+
+    # Add Expense Section
+    with st.sidebar.expander("Add Expense", expanded=False):
+        st.write("Option to add an expense")
+
+    # View Expenses Section
+    with st.sidebar.expander("View Expenses", expanded=False):
+        st.write("Option to view all expenses")
+
+    # Track Debts Section
+    with st.sidebar.expander("Track Debts", expanded=False):
+        st.write("Option to track debts")
+
+    # Predict Expenses Section
+    with st.sidebar.expander("Predict Expenses", expanded=False):
+        st.write("Option to predict expenses")
+
+    # Generate Sample Data Section
+    with st.sidebar.expander("Generate Sample Data", expanded=False):
+        st.write("Option to generate sample data")
+
+def main():
+    st.title("EagleWallet")
     menu = ["Add Expense", "View Expenses", "Track Debts", "Predict Expenses", "Generate Sample Data"]
     choice = st.sidebar.selectbox("Menu", menu)
 
