@@ -363,7 +363,9 @@ def main():
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
-    if choice == "Add Income":
+    if choice == "EagleWallet Dashboard":
+        dashboard()
+    elif choice == "Add Income":
         add_income()
     elif choice == "View Incomes":
         view_incomes()
@@ -396,9 +398,7 @@ def main():
     elif choice == "Currency Rates":
         live_currency_rates()
     elif choice == "Stocks":
-        live_stock_prices()   
-    elif choice == "EagleWallet Dashboard":
-        dashboard()             
+        live_stock_prices()              
 
     # Team member names at the bottom of the sidebar
     st.sidebar.markdown("---")  # Separator line
