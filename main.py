@@ -91,6 +91,24 @@ def view_expenses():
     else:
         st.warning("No data available.")
 
+def expense_heatmap():
+    st.subheader("Expense Heatmap")
+
+    # Create DataFrame from session state expense data
+    if st.session_state.expense_data:
+        df = pd.DataFrame(st.session_state.expense_data)
+        df['Date'] = pd.to_datetime(df['Date'])
+
+        # Pivot the data to get sums of amounts per category by day
+        heatmap_data = df.pivot_table(index=df['Date'].dt.date, columns='Category', values='Amount', aggfunc='sum', fill_value=0)
+
+        # Create the heatmap using Plotly
+        fig = px.imshow(heatmap_data.T, color_continuous_scale='Viridis', 
+                        title="Expense Heatmap by Category", labels=dict(x="Date", y="Category", color="Amount"))
+        st.plotly_chart(fig)
+    else:
+        st.warning("No expense data available for heatmap.")
+
 def add_recurring_transaction():
     st.subheader("Add Recurring Transaction")
     with st.form("recurring_transaction_form"):
@@ -237,7 +255,6 @@ def live_currency_rates():
     df_currency = pd.DataFrame(list(currency_data.items()), columns=["Currency Pair", "Exchange Rate (BDT)"])
     st.table(df_currency)
 
-
 def live_stock_prices():
     st.subheader("Live Stocks")
     
@@ -248,8 +265,11 @@ def live_stock_prices():
         stock = yf.Ticker(ticker)
         stock_data[ticker] = stock.history(period="1d")["Close"].iloc[-1]
 
-    stock_df = pd.DataFrame(stocks).T  # Transpose to match stock format
-    stock_df.columns = ["Company Name", "Price (USD)"]
+    # Create a DataFrame with stock tickers and their prices
+    stock_df = pd.DataFrame.from_dict(stock_data, orient="index", columns=["Price (USD)"])
+    stock_df.index.name = "Company Ticker"
+    
+    # Display the stock data as a table in Streamlit
     st.table(stock_df)
 
 #Interface and navigation
@@ -257,7 +277,7 @@ def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Income","View Incomes","Add Expense", "View Expenses","Add Recurring Transaction", "Track Debts","Budget Planning" ,"Savings Goals" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Top 100 Stocks"]
+    menu = ["Add Income","View Incomes","Add Expense", "View Expenses","Expense Heatmap","Add Recurring Transaction", "Track Debts","Budget Planning" ,"Savings Goals" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
@@ -269,6 +289,8 @@ def main():
         add_expense()
     elif choice == "View Expenses":
         view_expenses()
+    elif choice == "Expense Heatmap":
+        expense_heatmap()
     elif choice == "Add Recurring Transaction":
         add_recurring_transaction()
     elif choice == "Track Debts":
@@ -289,9 +311,9 @@ def main():
                 st.success("Sample data generated!")
     elif choice == "Import/Export CSV":
         upload_csv()
-    elif choice == "Live Currency Rates":
+    elif choice == "Currency Rates":
         live_currency_rates()
-    elif choice == "Top 100 Stocks":
+    elif choice == "Stocks":
         live_stock_prices()                
 
     # Team member names at the bottom of the sidebar
