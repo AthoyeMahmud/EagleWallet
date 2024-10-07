@@ -280,13 +280,79 @@ def live_stock_prices():
     # Display the stock data as a table
     st.table(stock_df)
 
+def dashboard():
+    st.title("EagleWallet Dashboard")
+    
+    # Overview Metrics
+    st.header("Financial Overview")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        total_income = sum([income['Amount'] for income in st.session_state.get('income_data', [])])
+        st.metric(label="Total Income", value=f"${total_income:,.2f}")
+    with col2:
+        total_expense = sum([expense['Amount'] for expense in st.session_state.get('expense_data', [])])
+        st.metric(label="Total Expenses", value=f"${total_expense:,.2f}")
+    with col3:
+        savings = total_income - total_expense
+        st.metric(label="Net Savings", value=f"${savings:,.2f}")
+    
+    # Income and Expense Trend Chart
+    st.header("Income & Expenses Over Time")
+    if 'income_data' in st.session_state and 'expense_data' in st.session_state:
+        df_income = pd.DataFrame(st.session_state.income_data)
+        df_expense = pd.DataFrame(st.session_state.expense_data)
+        
+        if not df_income.empty and not df_expense.empty:
+            df_income['Date'] = pd.to_datetime(df_income['Date'])
+            df_expense['Date'] = pd.to_datetime(df_expense['Date'])
+
+            # Aggregating data
+            daily_income = df_income.groupby('Date')['Amount'].sum().reset_index(name='Income')
+            daily_expense = df_expense.groupby('Date')['Amount'].sum().reset_index(name='Expense')
+
+            # Merging income and expense data
+            df_finances = pd.merge(daily_income, daily_expense, on='Date', how='outer').fillna(0)
+
+            # Plotting
+            fig = px.line(df_finances, x='Date', y=['Income', 'Expense'], labels={"value": "Amount", "variable": "Type"})
+            st.plotly_chart(fig)
+
+    # Expense Category Breakdown
+    st.header("Expense Breakdown by Category")
+    if st.session_state.expense_data:
+        df = pd.DataFrame(st.session_state.expense_data)
+        df['Date'] = pd.to_datetime(df['Date'])
+        category_fig = px.pie(df, names='Category', values='Amount', title='Expenses by Category')
+        st.plotly_chart(category_fig)
+
+    # Budget Comparison
+    if "budget" in st.session_state:
+        st.header("Budget vs Actual Spending")
+        df_expense = pd.DataFrame(st.session_state.expense_data)
+        category_expenses = df_expense.groupby("Category")["Amount"].sum()
+        budget = pd.Series(st.session_state.budget)
+        comparison = pd.DataFrame({"Spent": category_expenses, "Budget": budget}).fillna(0)
+
+        # Plotting the comparison
+        budget_fig = px.bar(comparison, x=comparison.index, y=["Spent", "Budget"], barmode='group', title="Budget vs Actual")
+        st.plotly_chart(budget_fig)
+
+    # Savings Goals Progress
+    if 'savings_goals' in st.session_state:
+        st.header("Savings Goals Progress")
+        df_savings = pd.DataFrame(st.session_state.savings_goals)
+        df_savings['Progress (%)'] = (df_savings['Current Savings'] / df_savings['Target Amount']) * 100
+
+        # Plot savings progress
+        savings_fig = px.bar(df_savings, x='Goal Name', y='Progress (%)', title="Savings Progress", range_y=[0, 100])
+        st.plotly_chart(savings_fig)
 
 #Interface and navigation
 def main():
     st.title("EagleWallet")
 
     # Sidebar Menu using st.radio for navigation
-    menu = ["Add Income","View Incomes","Add Expense", "View Expenses","Expense Heatmap","Add Recurring Transaction", "Track Debts","Budget Planning" ,"Savings Goals" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Stocks"]
+    menu = ["Wallet Dashboard","Add Income","View Incomes","Add Expense", "View Expenses","Expense Heatmap","Add Recurring Transaction", "Track Debts","Budget Planning" ,"Savings Goals" , "Predict Expenses", "Generate Sample Data", "Import/Export CSV", "Live Currency Rates", "Stocks"]
     choice = st.sidebar.radio("Menu", menu)
 
     # Show appropriate content based on the user's selection
@@ -323,7 +389,9 @@ def main():
     elif choice == "Currency Rates":
         live_currency_rates()
     elif choice == "Stocks":
-        live_stock_prices()                
+        live_stock_prices()   
+    elif choice == "EagleWallet Dashboard":
+        dashboard()             
 
     # Team member names at the bottom of the sidebar
     st.sidebar.markdown("---")  # Separator line
