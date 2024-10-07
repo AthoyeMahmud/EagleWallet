@@ -256,21 +256,30 @@ def live_currency_rates():
     st.table(df_currency)
 
 def live_stock_prices():
-    st.subheader("Live Stocks")
-    
-    stock_tickers = ["AAPL", "GOOGL", "TSLA", "MSFT", "AMZN"]
-    
+    st.subheader("Live Stocks - Fortune 500")
+
+    # List of Fortune 500 stock tickers (sample for illustration, can be expanded)
+    stock_tickers = [
+        "AAPL", "GOOGL", "TSLA", "MSFT", "AMZN", "JPM", "V", "PG", "JNJ", "UNH", "VZ", "WMT", "CVX", "XOM", 
+        "KO", "PEP", "CSCO", "HD", "DIS", "MA", "BA", "MCD", "IBM", "NFLX", "NKE"
+        # Add more tickers as needed
+    ]
+
     stock_data = {}
     for ticker in stock_tickers:
-        stock = yf.Ticker(ticker)
-        stock_data[ticker] = stock.history(period="1d")["Close"].iloc[-1]
+        try:
+            stock = yf.Ticker(ticker)
+            stock_data[ticker] = stock.history(period="1d")["Close"].iloc[-1]
+        except Exception as e:
+            stock_data[ticker] = f"Error: {str(e)}"
 
-    # Create a DataFrame with stock tickers and their prices
+    # Create DataFrame with stock tickers and prices
     stock_df = pd.DataFrame.from_dict(stock_data, orient="index", columns=["Price (USD)"])
     stock_df.index.name = "Company Ticker"
-    
-    # Display the stock data as a table in Streamlit
+
+    # Display the stock data as a table
     st.table(stock_df)
+
 
 #Interface and navigation
 def main():
