@@ -286,21 +286,26 @@ def dashboard():
     # Overview Metrics
     st.header("Financial Overview")
     col1, col2, col3 = st.columns(3)
+    
+    income_data = st.session_state.get('income_data', [])
+    expense_data = st.session_state.get('expense_data', [])
+    
+    total_income = sum([income['Amount'] for income in income_data])
+    total_expense = sum([expense['Amount'] for expense in expense_data])
+    savings = total_income - total_expense
+    
     with col1:
-        total_income = sum([income['Amount'] for income in st.session_state.get('income_data', [])])
         st.metric(label="Total Income", value=f"${total_income:,.2f}")
     with col2:
-        total_expense = sum([expense['Amount'] for expense in st.session_state.get('expense_data', [])])
         st.metric(label="Total Expenses", value=f"${total_expense:,.2f}")
     with col3:
-        savings = total_income - total_expense
         st.metric(label="Net Savings", value=f"${savings:,.2f}")
     
     # Income and Expense Trend Chart
     st.header("Income & Expenses Over Time")
-    if 'income_data' in st.session_state and 'expense_data' in st.session_state:
-        df_income = pd.DataFrame(st.session_state.income_data)
-        df_expense = pd.DataFrame(st.session_state.expense_data)
+    if income_data and expense_data:
+        df_income = pd.DataFrame(income_data)
+        df_expense = pd.DataFrame(expense_data)
         
         if not df_income.empty and not df_expense.empty:
             df_income['Date'] = pd.to_datetime(df_income['Date'])
@@ -316,31 +321,33 @@ def dashboard():
             # Plotting
             fig = px.line(df_finances, x='Date', y=['Income', 'Expense'], labels={"value": "Amount", "variable": "Type"})
             st.plotly_chart(fig)
-
+    
     # Expense Category Breakdown
     st.header("Expense Breakdown by Category")
-    if st.session_state.expense_data:
-        df = pd.DataFrame(st.session_state.expense_data)
-        df['Date'] = pd.to_datetime(df['Date'])
-        category_fig = px.pie(df, names='Category', values='Amount', title='Expenses by Category')
+    if expense_data:
+        df_expense['Date'] = pd.to_datetime(df_expense['Date'])
+        category_fig = px.pie(df_expense, names='Category', values='Amount', title='Expenses by Category')
         st.plotly_chart(category_fig)
 
     # Budget Comparison
-    if "budget" in st.session_state:
+    budget = st.session_state.get('budget', {})
+    if budget:
         st.header("Budget vs Actual Spending")
-        df_expense = pd.DataFrame(st.session_state.expense_data)
         category_expenses = df_expense.groupby("Category")["Amount"].sum()
-        budget = pd.Series(st.session_state.budget)
-        comparison = pd.DataFrame({"Spent": category_expenses, "Budget": budget}).fillna(0)
+        budget_series = pd.Series(budget)
+
+        # Align budget and actual expenses
+        comparison = pd.DataFrame({"Spent": category_expenses, "Budget": budget_series}).fillna(0)
 
         # Plotting the comparison
         budget_fig = px.bar(comparison, x=comparison.index, y=["Spent", "Budget"], barmode='group', title="Budget vs Actual")
         st.plotly_chart(budget_fig)
 
     # Savings Goals Progress
-    if 'savings_goals' in st.session_state:
+    savings_goals = st.session_state.get('savings_goals', [])
+    if savings_goals:
         st.header("Savings Goals Progress")
-        df_savings = pd.DataFrame(st.session_state.savings_goals)
+        df_savings = pd.DataFrame(savings_goals)
         df_savings['Progress (%)'] = (df_savings['Current Savings'] / df_savings['Target Amount']) * 100
 
         # Plot savings progress
