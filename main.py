@@ -8,7 +8,6 @@ import numpy as np
 import requests
 import yfinance as yf
 
-# Centralized session state initialization
 def initialize_session_state():
     state_defaults = {"expense_data": [], "debts": []}
     for key, value in state_defaults.items():
@@ -94,15 +93,12 @@ def view_expenses():
 def expense_heatmap():
     st.subheader("Expense Heatmap")
 
-    # Create DataFrame from session state expense data
     if st.session_state.expense_data:
         df = pd.DataFrame(st.session_state.expense_data)
         df['Date'] = pd.to_datetime(df['Date'])
 
-        # Pivot the data to get sums of amounts per category by day
         heatmap_data = df.pivot_table(index=df['Date'].dt.date, columns='Category', values='Amount', aggfunc='sum', fill_value=0)
 
-        # Create the heatmap using Plotly
         fig = px.imshow(heatmap_data.T, color_continuous_scale='Viridis', 
                         title="Expense Heatmap by Category", labels=dict(x="Date", y="Category", color="Amount"))
         st.plotly_chart(fig)
@@ -233,27 +229,41 @@ def upload_csv():
         st.write("CSV Data:")
         st.dataframe(df)
         
-        # Export CSV option
         st.subheader("Export CSV")
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(label="Download CSV", data=csv, file_name='exported_data.csv', mime='text/csv')
 
 def live_currency_rates():
     st.subheader("Live Currency Exchange Rates (BDT)")
+    
     currency_pairs = {
         "USD/BDT": "USD/BDT",
         "EUR/BDT": "EUR/BDT",
-        "GBP/BDT": "GBP/BDT"
+        "GBP/BDT": "GBP/BDT",
+        "AUD/BDT": "AUD/BDT",
+        "CAD/BDT": "CAD/BDT",
+        "JPY/BDT": "JPY/BDT",
+        "CHF/BDT": "CHF/BDT",
+        "INR/BDT": "INR/BDT",
+        "CNY/BDT": "CNY/BDT",
+        "NZD/BDT": "NZD/BDT",
+        "SGD/BDT": "SGD/BDT",
+        "HKD/BDT": "HKD/BDT",
     }
 
-    # Fetching data from Yahoo Finance using yfinance
     currency_data = {}
     for pair in currency_pairs:
-        ticker = yf.Ticker(pair.split("/")[0] + pair.split("/")[1] + "=X")
-        currency_data[pair] = ticker.history(period="1d")["Close"].iloc[-1]
+        try:
+            ticker = yf.Ticker(pair.split("/")[0] + pair.split("/")[1] + "=X")
+            price = ticker.history(period="1d")["Close"].iloc[-1]
+            currency_data[pair] = price
+        except Exception as e:
+            currency_data[pair] = f"Error: {str(e)}"
 
+    # Creating a DataFrame to display the results
     df_currency = pd.DataFrame(list(currency_data.items()), columns=["Currency Pair", "Exchange Rate (BDT)"])
     st.table(df_currency)
+
 
 def live_stock_prices():
     st.subheader("Live Stocks - Fortune 500")
