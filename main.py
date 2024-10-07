@@ -235,40 +235,22 @@ def upload_csv():
 
 def live_currency_rates():
     st.subheader("Live Currency Exchange Rates (BDT)")
-    
     currency_pairs = {
         "USD/BDT": "USD/BDT",
         "EUR/BDT": "EUR/BDT",
-        "GBP/BDT": "GBP/BDT",
-        "AUD/BDT": "AUD/BDT",
-        "CAD/BDT": "CAD/BDT",
-        "JPY/BDT": "JPY/BDT",
-        "CHF/BDT": "CHF/BDT",
-        "INR/BDT": "INR/BDT",
-        "CNY/BDT": "CNY/BDT",
-        "NZD/BDT": "NZD/BDT",
-        "SGD/BDT": "SGD/BDT",
-        "HKD/BDT": "HKD/BDT",
+        "GBP/BDT": "GBP/BDT"
     }
-
     currency_data = {}
     for pair in currency_pairs:
-        try:
-            ticker = yf.Ticker(pair.split("/")[0] + pair.split("/")[1] + "=X")
-            price = ticker.history(period="1d")["Close"].iloc[-1]
-            currency_data[pair] = price
-        except Exception as e:
-            currency_data[pair] = f"Error: {str(e)}"
+        ticker = yf.Ticker(pair.split("/")[0] + pair.split("/")[1] + "=X")
+        currency_data[pair] = ticker.history(period="1d")["Close"].iloc[-1]
 
-    # Creating a DataFrame to display the results
     df_currency = pd.DataFrame(list(currency_data.items()), columns=["Currency Pair", "Exchange Rate (BDT)"])
     st.table(df_currency)
-
 
 def live_stock_prices():
     st.subheader("Live Stocks - Fortune 500")
 
-    # List of Fortune 500 stock tickers (sample for illustration, can be expanded)
     stock_tickers = [
         "AAPL", "GOOGL", "TSLA", "MSFT", "AMZN", "JPM", "V", "PG", "JNJ", "UNH", "VZ", "WMT", "CVX", "XOM", 
         "KO", "PEP", "CSCO", "HD", "DIS", "MA", "BA", "MCD", "IBM", "NFLX", "NKE"
